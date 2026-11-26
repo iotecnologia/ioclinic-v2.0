@@ -10,13 +10,14 @@ import { ir } from '../estado/rota';
 import { FormPaciente } from '../componentes/FormPaciente';
 import { NovoAgendamento } from '../componentes/Agendamento';
 import { EmitirDocumento, NOME_DOC } from '../componentes/Documentos';
+import { Acao } from '../componentes/Acao';
 
 export function FichaPaciente({ id }: { id: string }) {
   const { base } = useDados();
   const { usuario } = useSessao();
   const [janela, setJanela] = useState<'editar' | 'agendar' | 'documento' | null>(null);
   const p = base.pacientes.find((x) => x.id === id);
-  if (!p) return <p className="vazio">Paciente não encontrado. <a onClick={() => ir('pacientes')}>Voltar</a></p>;
+  if (!p) return <p className="vazio">Paciente não encontrado. <Acao onClick={() => ir('pacientes')}>Voltar</Acao></p>;
   const medica = usuario?.perfil === 'medica';
   const h = hoje();
   const ags = base.agendamentos.filter((a) => a.pacienteId === id);
@@ -30,7 +31,7 @@ export function FichaPaciente({ id }: { id: string }) {
 
   return (
     <>
-      <p className="trilha"><a onClick={() => ir('pacientes')}>Pacientes</a> / {p.nome}</p>
+      <p className="trilha"><Acao onClick={() => ir('pacientes')}>Pacientes</Acao> / {p.nome}</p>
       <div className="cab" style={{ alignItems: 'flex-start' }}>
         <div><h1>{p.nome}</h1><div className="mut" style={{ marginTop: 4 }}>{p.nascimento ? `${idade(p.nascimento)} anos · ` : ''}Paciente desde {desde} · {atendidas.length} {atendidas.length === 1 ? 'visita' : 'visitas'}</div></div>
         <div className="acoes">

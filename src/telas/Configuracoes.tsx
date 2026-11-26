@@ -7,6 +7,7 @@ import { brl, DIAS, lerValor, novoId } from '../regras/formato';
 import { Janela } from '../componentes/Janela';
 import { AlterarSenha } from '../componentes/AlterarSenha';
 import { useSessao } from '../estado/Sessao';
+import { Acao } from '../componentes/Acao';
 
 type Aba = 'servicos' | 'horarios' | 'mensagens' | 'usuarios' | 'clinica';
 const ABAS: [Aba, string][] = [['servicos', 'Serviços'], ['horarios', 'Horários'], ['mensagens', 'Mensagens do WhatsApp'], ['usuarios', 'Usuários'], ['clinica', 'Dados da clínica']];
@@ -36,7 +37,7 @@ export function Configuracoes() {
   return (
     <>
       <div className="cab"><h1>Configurações</h1><div className="acoes">{botao}</div></div>
-      <div className="abas rolagem">{ABAS.map(([id, n]) => <a key={id} className={aba === id ? 'on' : ''} onClick={() => setAba(id)}>{n}</a>)}</div>
+      <div className="abas rolagem">{ABAS.map(([id, n]) => <Acao key={id} className={aba === id ? 'on' : ''} onClick={() => setAba(id)}>{n}</Acao>)}</div>
 
       {aba === 'servicos' && (
         <div className="rolagem"><table>

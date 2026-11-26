@@ -7,6 +7,7 @@ import { brl, diaMes, hoje, lerValor, MESES, MESES_CURTO, normalizar, pct } from
 import { lancarDespesa } from '../estado/acoes';
 import { Janela } from '../componentes/Janela';
 import type { DespesaFixa } from '../tipos/modelos';
+import { Acao } from '../componentes/Acao';
 
 export const CATEGORIAS = ['Aluguel', 'Condomínio', 'Contadora', 'Funcionários', 'Impostos', 'Sistemas', 'Marketing', 'Luz', 'Internet e telefone', 'Taxas bancárias', 'Material administrativo', 'Material para procedimentos', 'Repasse para outros profissionais', 'Serviços externos', 'Outros gastos'];
 
@@ -51,9 +52,9 @@ export function Caixa() {
         <div className="acoes"><button onClick={exportar}>Exportar</button><button className="pri" onClick={() => setDespesa(true)}>Lançar despesa</button></div>
       </div>
       <div className="abas rolagem">
-        <a className={aba === 'resultado' ? 'on' : ''} onClick={() => setAba('resultado')}>Resultado</a>
-        <a className={aba === 'lancamentos' ? 'on' : ''} onClick={() => setAba('lancamentos')}>Lançamentos</a>
-        <a className={aba === 'fixas' ? 'on' : ''} onClick={() => setAba('fixas')}>Despesas fixas</a>
+        <Acao className={aba === 'resultado' ? 'on' : ''} onClick={() => setAba('resultado')}>Resultado</Acao>
+        <Acao className={aba === 'lancamentos' ? 'on' : ''} onClick={() => setAba('lancamentos')}>Lançamentos</Acao>
+        <Acao className={aba === 'fixas' ? 'on' : ''} onClick={() => setAba('fixas')}>Despesas fixas</Acao>
       </div>
 
       {aba === 'resultado' && (

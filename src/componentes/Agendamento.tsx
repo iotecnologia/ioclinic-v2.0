@@ -15,6 +15,7 @@ import { BuscaPaciente } from './BuscaPaciente';
 import { FormPaciente } from './FormPaciente';
 import { EscolherHorario } from './EscolherHorario';
 import { EmitirDocumento } from './Documentos';
+import { Acao } from './Acao';
 
 export function textoSituacao(v: Visita) {
   const chegouAs = v.itens[0].chegouAs;
@@ -91,7 +92,7 @@ export function DetalheVisita({ visitaId, onFechar, onReagendar }: { visitaId: s
         <ul className="historico">
           {primeiro.eventos.map((e, i) => <li key={i}><span>{diaMes(e.quando.slice(0, 10))} {e.quando.slice(11, 16)}</span>{e.texto}</li>)}
         </ul>
-        <p className="peq" style={{ margin: '14px 0 0' }}><a onClick={() => { onFechar(); ir(`pacientes/${pac.id}`); }}>Abrir ficha do paciente</a> <span className="mut">· {pac.celular}</span></p>
+        <p className="peq" style={{ margin: '14px 0 0' }}><Acao onClick={() => { onFechar(); ir(`pacientes/${pac.id}`); }}>Abrir ficha do paciente</Acao> <span className="mut">· {pac.celular}</span></p>
       </Janela>
       {sub === 'receber' && <Receber visitaId={visitaId} total={aReceber} onFechar={() => setSub(null)} />}
       {sub === 'remarcar' && <Remarcar visita={v} onFechar={() => setSub(null)} />}

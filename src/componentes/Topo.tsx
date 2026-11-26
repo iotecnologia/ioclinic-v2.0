@@ -8,6 +8,7 @@ import { useFechaFora } from './useFechaFora';
 import { pendencias } from '../regras/pendencias';
 import { dataBR, hoje, somarDias } from '../regras/formato';
 import { ir } from '../estado/rota';
+import { Acao } from './Acao';
 
 const MENU = [
   { id: 'agenda', nome: 'Agenda', medica: false },
@@ -57,15 +58,15 @@ export function Topo({ ativo }: { ativo: string }) {
           )}
         </div>
         <span className="clinica"><img src="./dra-simbolo.png" alt="" /><span>{base.clinica.nome} · {base.clinica.especialidade}</span></span>
-        <a className="usuario" title="Alterar minha senha" onClick={() => setSenha(true)}>{usuario?.nome}</a>
-        <a className="menu-largo" onClick={sair}>Sair</a>
+        <Acao className="usuario" title="Alterar minha senha" onClick={() => setSenha(true)}>{usuario?.nome}</Acao>
+        <Acao className="menu-largo" onClick={sair}>Sair</Acao>
         <button className="botao-menu" aria-expanded={aberto} onClick={() => setAberto(!aberto)}>{aberto ? 'Fechar' : 'Menu'}</button>
       </div>
       {aberto && (
         <nav className="menu-celular" onClick={() => setAberto(false)}>
           {itens.map((m) => <a key={m.id} href={`#/${m.id}`} className={ativo === m.id ? 'on' : ''}>{m.nome}</a>)}
-          <a onClick={() => setSenha(true)}>Alterar minha senha</a>
-          <a onClick={sair}>Sair</a>
+          <Acao onClick={() => setSenha(true)}>Alterar minha senha</Acao>
+          <Acao onClick={sair}>Sair</Acao>
         </nav>
       )}
       {senha && usuario && <AlterarSenha usuario={usuario} propria onFechar={() => setSenha(false)} />}

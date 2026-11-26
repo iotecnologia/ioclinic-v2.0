@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useDados } from '../estado/Dados';
 import { senhaDe, useSessao } from '../estado/Sessao';
+import { Acao } from '../componentes/Acao';
 
 export function Login() {
   const { base } = useDados();
@@ -32,7 +33,7 @@ export function Login() {
             <label className="rot">E-mail</label>
             <input className="w100" style={{ marginBottom: 22 }} value={email} onChange={(e) => setEmail(e.target.value)} />
             <button type="button" className="pri w100" style={{ padding: 10 }} onClick={() => { setRecuperar(false); setErro('Link enviado. Confira o seu e-mail.'); }}>Enviar link</button>
-            <a style={{ marginTop: 16, textAlign: 'center' }} onClick={() => setRecuperar(false)}>Voltar</a>
+            <Acao style={{ marginTop: 16, textAlign: 'center' }} onClick={() => setRecuperar(false)}>Voltar</Acao>
           </>
         ) : (
           <>
@@ -44,7 +45,7 @@ export function Login() {
             <input id="senha" type="password" className="w100" style={{ marginBottom: 8 }} value={senha} onChange={(e) => { setSenha(e.target.value); setErro(''); }} autoComplete="current-password" />
             <div className="erro" style={{ minHeight: 20, marginBottom: 6 }}>{erro}</div>
             <button type="submit" className="pri w100" style={{ padding: 10 }}>Entrar</button>
-            <a style={{ marginTop: 16, textAlign: 'center' }} onClick={() => setRecuperar(true)}>Esqueci minha senha</a>
+            <Acao style={{ marginTop: 16, textAlign: 'center' }} onClick={() => setRecuperar(true)}>Esqueci minha senha</Acao>
           </>
         )}
         <p className="mut peq" style={{ marginTop: 60, textAlign: 'center' }}>IO Clinic · desenvolvido por IO Tecnologia</p>
