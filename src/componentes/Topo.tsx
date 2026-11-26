@@ -1,9 +1,12 @@
-// Topo: marca do produto (IO) à esquerda, menu, e a clínica + usuário à direita.
+// Topo: marca do produto (IO) à esquerda, menu, e à direita o sino de pendências, a clínica e o usuário.
 // No celular o menu vira um botão "Menu" que abre a lista por baixo do topo.
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useDados } from '../estado/Dados';
 import { useSessao } from '../estado/Sessao';
 import { AlterarSenha } from './AlterarSenha';
+import { pendencias } from '../regras/pendencias';
+import { dataBR, hoje, somarDias } from '../regras/formato';
+import { ir } from '../estado/rota';
 
 const MENU = [
   { id: 'agenda', nome: 'Agenda', medica: false },
@@ -17,6 +20,17 @@ export function Topo({ ativo }: { ativo: string }) {
   const { usuario, sair } = useSessao();
   const [aberto, setAberto] = useState(false);
   const [senha, setSenha] = useState(false);
+  const [sino, setSino] = useState(false);
+  const refSino = useRef<HTMLDivElement>(null);
+  const lista = pendencias(base, hoje());
+  useEffect(() => {
+    if (!sino) return;
+    const fora = (e: MouseEvent) => { if (refSino.current && !refSino.current.contains(e.target as Node)) setSino(false); };
+    document.addEventListener('mousedown', fora);
+    return () => document.removeEventListener('mousedown', fora);
+  }, [sino]);
+  const quando = (d: string) => (d === hoje() ? 'Hoje' : d === somarDias(hoje(), 1) ? 'Amanhã' : dataBR(d).slice(0, 5));
+  const nome = (id: string) => base.pacientes.find((p) => p.id === id)?.nome ?? '';
   const medica = usuario?.perfil === 'medica';
   const itens = MENU.filter((m) => medica || !m.medica);
   return (
@@ -26,6 +40,26 @@ export function Topo({ ativo }: { ativo: string }) {
         {itens.map((m) => <a key={m.id} href={`#/${m.id}`} className={ativo === m.id ? 'on' : ''}>{m.nome}</a>)}
       </nav>
       <div className="direita">
+        <div className="sino" ref={refSino}>
+          <button className="botao-sino" aria-label={`Pendências: ${lista.length}`} aria-expanded={sino} onClick={() => setSino(!sino)}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></svg>
+            {lista.length > 0 && <span className="contador">{lista.length}</span>}
+          </button>
+          {sino && (
+            <div className="painel-sino">
+              <div className="painel-cab">Pendências</div>
+              {lista.length === 0 && <p className="vazio" style={{ padding: '18px 16px', margin: 0 }}>Nenhuma pendência.</p>}
+              {lista.map((p) => (
+                <button key={p.tipo + p.visita.id} className="item-sino" onClick={() => { setSino(false); ir(`agenda/${p.visita.data}/${p.visita.id}/${Date.now()}`); }}>
+                  <span className="quem">{nome(p.visita.pacienteId)}</span>
+                  <span className={'oque' + (p.tipo === 'a_receber' ? '' : ' atencao')}>{p.texto}</span>
+                  <span className="mut peq">{quando(p.visita.data)}, {p.visita.inicio}</span>
+                  <span className="acao">{p.acao} ›</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <span className="clinica"><img src="./dra-simbolo.png" alt="" /><span>{base.clinica.nome} · {base.clinica.especialidade}</span></span>
         <a className="usuario" title="Alterar minha senha" onClick={() => setSenha(true)}>{usuario?.nome}</a>
         <a className="menu-largo" onClick={sair}>Sair</a>

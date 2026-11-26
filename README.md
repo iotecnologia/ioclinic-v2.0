@@ -37,7 +37,7 @@ Regra geral: **a tela só consulta**. Incluir, alterar, receber e registrar acon
 | Tela | Pergunta que responde | Ação principal | Pop-ups |
 |---|---|---|---|
 | Login | — | Entrar | Recuperar senha · Alterar minha senha (clicando no próprio nome, no topo) |
-| **Agenda** (inicial) | Quem vem hoje e o que precisa de atenção? | Novo agendamento | Detalhe da visita (Chegou, Receber, Confirmar, Remarcar, Faltou, Cancelar; Dra.: Registrar atendimento, Emitir documento) · Novo agendamento · Receber · Remarcar · Cancelar |
+| **Agenda** (inicial) | Quem vem hoje? (o que precisa de atenção fica no sino do topo) | Novo agendamento | Detalhe da visita (Chegou, Receber, Confirmar, Remarcar, Faltou, Cancelar; Dra.: Registrar atendimento, Emitir documento) · Novo agendamento · Receber · Remarcar · Cancelar |
 | **Pacientes** | Quem é o paciente? | Novo paciente | Cadastro do paciente |
 | Ficha do paciente | O que o paciente já fez e pagou? | Novo agendamento | Editar cadastro · Emitir documento · Novo agendamento |
 | **Caixa** (Dra.) | Onde ganho e onde perco? | Lançar despesa | Lançar despesa · Despesa fixa · Exportar CSV |
@@ -57,7 +57,8 @@ Qualquer serviço pode ter essa opção (Configurações → Serviços).
 ## Fluxo automático da agenda
 
 Agendou → WhatsApp pede confirmação (1 confirma, 2 remarca) → lembrete na véspera (hora configurável)
-→ quem não respondeu ou pediu para remarcar aparece na faixa **Atenção** da Agenda
+→ quem não respondeu, pediu para remarcar ou ainda não pagou aparece no **sino** do topo (com o número de pendências);
+  clicar no item abre o paciente na agenda, no botão da ação (Confirmar, Remarcar, Receber)
 → no dia: Chegou → atendimento → **Receber** → o pagamento entra sozinho no Caixa (com a taxa da maquininha).
 
 No mock, as mensagens são simuladas (aparecem no histórico do agendamento).

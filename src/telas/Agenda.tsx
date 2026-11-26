@@ -1,12 +1,13 @@
 // Agenda: tela inicial das duas (recepção e Dra.). Um dia por vez; cada linha é uma VISITA
 // (um ou mais serviços do paciente em sequência). Clicar no paciente abre o pop-up; clicar num
-// horário livre abre o Novo agendamento naquele horário.
+// horário livre abre o Novo agendamento naquele horário. As pendências ficam no sino do topo.
 // Celular: cada visita vira duas linhas (horário e nome; serviços e situação), sem a coluna de pagamento.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useDados } from '../estado/Dados';
-import { gradeDoDia, PEDE_ATENCAO, visitasDoDia, type Visita } from '../regras/agenda';
+import { gradeDoDia, PEDE_ATENCAO, type Visita } from '../regras/agenda';
 import { brl, dataExtenso, diaSemana, hoje, somarDias } from '../regras/formato';
 import { pagamentoDo } from '../estado/acoes';
+import { useRota } from '../estado/rota';
 import { Calendario } from '../componentes/Calendario';
 import { DetalheVisita, NovoAgendamento, textoSituacao } from '../componentes/Agendamento';
 
@@ -16,15 +17,17 @@ export function Agenda() {
   const [calAberto, setCalAberto] = useState(false);
   const [aberta, setAberta] = useState<string | null>(null);
   const [novo, setNovo] = useState<{ data: string; hora?: string; paciente?: string } | null>(null);
+  // vindo do sino: #/agenda/<data>/<visitaId>/<marca> abre o dia e o pop-up do paciente
+  const [, dRota, vRota, marca] = useRota();
+  useEffect(() => {
+    if (dRota && vRota) { setData(dRota); setAberta(vRota); }
+  }, [dRota, vRota, marca]);
 
   const linhas = gradeDoDia(data, base.agendamentos, base.clinica);
   const fechado = !base.clinica.horarios[diaSemana(data)];
   const nome = (v: Visita) => base.pacientes.find((p) => p.id === v.pacienteId)?.nome ?? '';
   const servicos = (v: Visita) => v.itens.map((a) => base.servicos.find((s) => s.id === a.servicoId)?.nome ?? '').join(' + ');
 
-  // Atenção: hoje e amanhã, quem não respondeu ou pediu para remarcar
-  const amanha = somarDias(hoje(), 1);
-  const atencao = [...visitasDoDia(hoje(), base.agendamentos), ...visitasDoDia(amanha, base.agendamentos)].filter((v) => PEDE_ATENCAO.includes(v.situacao));
 
   const pagamento = (v: Visita) => {
     const pagos = v.itens.map((a) => pagamentoDo(base, a.id)).filter(Boolean);
@@ -54,21 +57,6 @@ export function Agenda() {
         </div>
         <div className="acoes"><button className="pri" onClick={() => setNovo({ data })}>Novo agendamento</button></div>
       </div>
-
-      {atencao.length > 0 && (
-        <div className="faixa">
-          <b>Atenção</b>
-          <span>
-            {atencao.map((v, i) => (
-              <span key={v.id}>{i > 0 && ' · '}
-                <a style={{ color: 'inherit' }} onClick={() => { setData(v.data); setAberta(v.id); }}>
-                  {nome(v).split(' ').slice(0, 2).join(' ')} ({v.data === hoje() ? 'hoje' : 'amanhã'}, {v.inicio})
-                </a> {v.situacao === 'sem_resposta' ? 'não respondeu à confirmação' : 'pediu para remarcar'}
-              </span>
-            ))}
-          </span>
-        </div>
-      )}
 
       {fechado ? <p className="vazio">Sem atendimento neste dia.</p> : (
         <table className="tabela-agenda">
