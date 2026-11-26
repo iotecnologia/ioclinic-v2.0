@@ -6,8 +6,16 @@ import { servicosDaVisita } from '../src/regras/agenda';
 
 describe('caixa e visitas', () => {
   const base = gerarBase('2026-11-26', '11:00');
-  const nova = (b: typeof base, servicoIds: string[], data = '2026-12-09', inicio = '08:00') =>
-    agendarVisita(b, { pacienteId: b.pacientes[0].id, servicoIds, data, inicio, convenioId: null, enviarWhatsapp: true, origem: 'pela recepção' });
+  // a recepcionista escolhe o horário de cada exame; aqui, um depois do outro a partir de `inicio`
+  const nova = (b: typeof base, servicoIds: string[], data = '2026-12-09', inicio = '08:00') => {
+    let t = Number(inicio.slice(0, 2)) * 60 + Number(inicio.slice(3));
+    const itens = servicoIds.map((servicoId) => {
+      const h = `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+      t += b.servicos.find((s) => s.id === servicoId)!.duracaoMin;
+      return { servicoId, inicio: h };
+    });
+    return agendarVisita(b, { pacienteId: b.pacientes[0].id, data, itens, enviarWhatsapp: true, origem: 'pela recepção' });
+  };
 
   it('resultado fecha a conta do DRE', () => {
     const r = resultadoDoMes(base, '2026-10');
@@ -21,7 +29,12 @@ describe('caixa e visitas', () => {
     expect(taxaMaquininha(base.clinica, 'Crédito', 6, 600)).toBeCloseTo(18.3, 2);
     expect(taxaMaquininha(base.clinica, 'Crédito', 10, 600)).toBeCloseTo(20.1, 2);
   });
-  it('visita com vários serviços: em sequência, uma mensagem, um recebimento repartido por serviço', () => {
+  it('exames no mesmo horário (a recepcionista decide)', () => {
+    const b = structuredClone(base);
+    const vid = agendarVisita(b, { pacienteId: b.pacientes[0].id, data: '2026-12-09', itens: [{ servicoId: 'srv_eco', inicio: '10:00' }, { servicoId: 'srv_ecg', inicio: '10:00' }], enviarWhatsapp: true, origem: 'pela recepção' });
+    expect(servicosDaVisita(b.agendamentos, vid).map((a) => a.inicio)).toEqual(['10:00', '10:00']);
+  });
+  it('visita com vários serviços: uma mensagem, um recebimento repartido por serviço', () => {
     const b = structuredClone(base);
     const vid = nova(b, ['srv_consulta', 'srv_eco']);
     const itens = servicosDaVisita(b.agendamentos, vid);
@@ -42,14 +55,14 @@ describe('caixa e visitas', () => {
     cancelar(b, vid, '');
     expect(ret().situacao).toBe('cancelado');
   });
-  it('tirar um serviço não cancela o resto e não deixa buraco', () => {
+  it('tirar um serviço não cancela o resto da visita', () => {
     const b = structuredClone(base);
     const vid = nova(b, ['srv_consulta', 'srv_eco', 'srv_ecodoppler']);
     const eco = servicosDaVisita(b.agendamentos, vid)[1];
     tirarDaVisita(b, eco.id);
     const resto = servicosDaVisita(b.agendamentos, vid);
     expect(resto.map((a) => a.servicoId)).toEqual(['srv_consulta', 'srv_ecodoppler']);
-    expect(resto.map((a) => a.inicio)).toEqual(['08:00', '09:00']); // sem buraco
+    expect(resto.map((a) => a.inicio)).toEqual(['08:00', '09:30']); // horários escolhidos não mudam
   });
   it('serviço usado não pode ser excluído', () => {
     const b = structuredClone(base);

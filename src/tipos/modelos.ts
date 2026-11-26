@@ -1,7 +1,7 @@
 // Modelo de dados do IO Clinic.
 // Pensado para crescer: TODO registro pertence a uma clínica (clinicaId) — é isso que permite vender
-// o mesmo sistema para vários médicos. O agendamento aponta para um profissional (hoje só a Dra.),
-// e o pagamento pode ser particular ou por convênio.
+// o mesmo sistema para vários médicos. O agendamento aponta para um profissional (hoje só a Dra.).
+// Atendimento só particular.
 // No sistema real, cada interface vira uma coleção/tabela no banco.
 
 export type Perfil = 'medica' | 'recepcao';
@@ -37,20 +37,12 @@ export interface Profissional {
   nome: string;
 }
 
-export interface Convenio {
-  id: string;
-  clinicaId: string;
-  nome: string;
-  ativo: boolean;
-}
-
 export interface Servico {
   id: string;
   clinicaId: string;
   nome: string;
   duracaoMin: number;
   valorParticular: number;
-  valoresConvenio: Record<string, number>; // convenioId → valor
   custoPorExame: number; // repasse/material: entra nos custos do Caixa
   ativo: boolean; // serviço já usado não é excluído, é desativado
   retiradaDiaSeguinte?: boolean; // Holter/MAPA: agenda sozinho a retirada do aparelho no dia seguinte
@@ -75,8 +67,8 @@ export interface EventoAgendamento {
   texto: string; // "Confirmação enviada pelo WhatsApp", "Chegou à clínica"…
 }
 
-// Um agendamento = um serviço. A VISITA junta os serviços que o paciente faz em sequência no mesmo dia
-// (ex.: consulta + eco): mesmo visitaId → uma linha na agenda, um "Chegou", um "Receber", uma mensagem.
+// Um agendamento = um serviço, com o horário que a recepção escolheu. A VISITA junta os serviços do mesmo
+// paciente no mesmo dia (ex.: consulta + eco): mesmo visitaId → uma linha na agenda, um "Chegou", um "Receber", uma mensagem.
 export interface Agendamento {
   id: string;
   clinicaId: string;
@@ -87,7 +79,6 @@ export interface Agendamento {
   data: string; // AAAA-MM-DD
   inicio: string; // HH:MM
   fim: string;
-  pagamento: { tipo: 'particular' } | { tipo: 'convenio'; convenioId: string };
   valor: number;
   situacao: Situacao;
   chegouAs?: string;
@@ -157,7 +148,6 @@ export interface Base {
   clinica: Clinica;
   profissionais: Profissional[];
   usuarios: Usuario[];
-  convenios: Convenio[];
   servicos: Servico[];
   pacientes: Paciente[];
   agendamentos: Agendamento[];

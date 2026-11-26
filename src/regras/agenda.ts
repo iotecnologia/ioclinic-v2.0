@@ -48,18 +48,19 @@ export function visitasDoDia(data: string, ags: Agendamento[], incluirCanceladas
 
 export type LinhaDia = { tipo: 'visita'; visita: Visita } | { tipo: 'livre'; inicio: string; fim: string };
 
-/** Monta o dia: visitas em ordem e, entre elas, os intervalos livres dentro do horário de atendimento. */
+/** Monta o dia: visitas em ordem e os intervalos livres dentro do horário de atendimento.
+ *  O livre é calculado pelos horários de cada serviço (uma visita pode ter serviços em horários separados). */
 export function gradeDoDia(data: string, ags: Agendamento[], clinica: Clinica, bloqueios: Bloqueio[] = []): LinhaDia[] {
   const turnos = bloqueios.some((b) => b.data === data) ? [] : clinica.horarios[diaSemana(data)] ?? [];
   const visitas = visitasDoDia(data, ags);
   const linhas: LinhaDia[] = visitas.map((visita) => ({ tipo: 'visita', visita }));
+  const ocupados = ags.filter((a) => a.data === data && ocupa(a)).map((a) => [minutos(a.inicio), minutos(a.fim)] as [number, number]).sort((x, y) => x[0] - y[0]);
   for (const t of turnos) {
     let cursor = minutos(t.inicio);
     const fimTurno = minutos(t.fim);
-    for (const v of visitas) {
-      const ini = minutos(v.inicio), fim = minutos(v.fim);
+    for (const [ini, fim] of ocupados) {
       if (fim <= cursor || ini >= fimTurno) continue;
-      if (ini > cursor) linhas.push({ tipo: 'livre', inicio: hhmm(cursor), fim: v.inicio });
+      if (ini > cursor) linhas.push({ tipo: 'livre', inicio: hhmm(cursor), fim: hhmm(ini) });
       cursor = Math.max(cursor, fim);
     }
     if (cursor < fimTurno) linhas.push({ tipo: 'livre', inicio: hhmm(cursor), fim: t.fim });

@@ -137,10 +137,9 @@ tr.total td { font-weight: 600; border-top: 1px solid var(--linha); border-botto
   .folha { position: absolute; left: 0; top: 0; width: 100%; border: 0; min-height: auto; }
 }
 
-/* ---------- serviços no Novo agendamento ---------- */
-.servicos { display: flex; flex-wrap: wrap; gap: 8px; }
-.servicos button.sel { border-color: var(--azul); background: var(--azul); color: #fff; font-weight: 600; }
-.resumo-servicos { margin: 10px 0 0; min-height: 20px; }
+/* ---------- lista de exames no Novo agendamento ---------- */
+.lista-exames { display: grid; gap: 8px; }
+.linha-exame { display: grid; grid-template-columns: minmax(0, 1fr) 110px auto; gap: 8px; }
 .grade-check { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
 .escolher-horario { display: grid; grid-template-columns: 260px 1fr; gap: 22px; }
 
@@ -212,7 +211,8 @@ tr.total td { font-weight: 600; border-top: 1px solid var(--linha); border-botto
   .linha2, .linha3 { grid-template-columns: 1fr; }
   .escolher-horario { grid-template-columns: 1fr; }
   .grade-check { grid-template-columns: 1fr 1fr; }
-  .servicos button { flex: 1 1 calc(50% - 8px); padding: 11px 8px; white-space: normal; }
+  .linha-exame { grid-template-columns: 1fr 1fr; }
+  .linha-exame select:first-child { grid-column: 1 / -1; }
   .horarios button { flex: 1 1 calc(25% - 8px); padding: 11px 4px; }
   .doc-grade { grid-template-columns: 1fr; }
   .folha { width: 100%; min-height: 0; padding: 22px 18px; }

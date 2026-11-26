@@ -4,8 +4,7 @@ import { CLINICA_PADRAO } from '../src/dados/gerador';
 import type { Agendamento } from '../src/tipos/modelos';
 
 const ag = (inicio: string, fim: string, situacao: Agendamento['situacao'] = 'confirmado', visitaId = inicio): Agendamento => ({
-  id: inicio, clinicaId: 'c', visitaId, profissionalId: 'p', pacienteId: 'x', servicoId: 's', data: '2026-12-03', inicio, fim,
-  pagamento: { tipo: 'particular' }, valor: 100, situacao, eventos: [],
+  id: inicio, clinicaId: 'c', visitaId, profissionalId: 'p', pacienteId: 'x', servicoId: 's', data: '2026-12-03', inicio, fim, valor: 100, situacao, eventos: [],
 });
 
 describe('agenda', () => {
@@ -18,6 +17,10 @@ describe('agenda', () => {
     const visitas = g.filter((l) => l.tipo === 'visita');
     expect(visitas).toHaveLength(1);
     expect(visitas[0].tipo === 'visita' && [visitas[0].visita.inicio, visitas[0].visita.fim, visitas[0].visita.valor]).toEqual(['09:00', '10:30', 200]);
+  });
+  it('visita com exames em horários separados deixa o intervalo livre', () => {
+    const g = gradeDoDia('2026-12-03', [ag('08:00', '09:00', 'confirmado', 'v1'), ag('10:00', '10:30', 'confirmado', 'v1')], CLINICA_PADRAO);
+    expect(g.filter((l) => l.tipo === 'livre').map((l) => l.tipo === 'livre' && l.inicio)).toContain('09:00');
   });
   it('consulta de 1h não atravessa o almoço nem outro paciente', () => {
     const livres = horariosLivres('2026-12-03', 60, [ag('09:00', '09:30')], CLINICA_PADRAO);

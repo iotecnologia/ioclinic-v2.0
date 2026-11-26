@@ -25,16 +25,10 @@ function retiradaDa(b: Base, visitaId: string): Agendamento[] {
 
 export interface NovaVisita {
   pacienteId: string;
-  servicoIds: string[]; // na ordem em que serão feitos
   data: string;
-  inicio: string;
-  convenioId: string | null; // null = particular
+  itens: { servicoId: string; inicio: string }[]; // cada serviço com o horário que a recepção escolheu
   enviarWhatsapp: boolean;
   origem: string; // "pela recepção" | "pela Dra."
-}
-
-export function valorDoServico(s: Servico, convenioId: string | null): number {
-  return convenioId ? s.valoresConvenio[convenioId] ?? 0 : s.valorParticular;
 }
 
 /** Próximo dia de atendimento depois de `data` e o horário da retirada (o mesmo, se livre; senão o primeiro livre). */
@@ -49,35 +43,31 @@ export function horarioDaRetirada(b: Base, data: string, inicio: string, duracao
   return null;
 }
 
-/** Agenda a visita (um ou mais serviços em sequência). Holter/MAPA geram a retirada no dia seguinte. Devolve o visitaId. */
+/** Agenda a visita (um ou mais serviços, cada um no seu horário). Holter/MAPA geram a retirada no dia seguinte. Devolve o visitaId. */
 export function agendarVisita(b: Base, n: NovaVisita): string {
   const visitaId = novoId('vis');
-  const servicos = n.servicoIds.map((id) => b.servicos.find((s) => s.id === id)!);
-  let ini = minutos(n.inicio);
-  const criados: Agendamento[] = [];
-  for (const s of servicos) {
-    criados.push({
+  const criados: Agendamento[] = n.itens.map(({ servicoId, inicio }) => {
+    const s = b.servicos.find((x) => x.id === servicoId)!;
+    return {
       id: novoId('ag'), clinicaId: b.clinica.id, visitaId, profissionalId: b.profissionais[0].id, pacienteId: n.pacienteId, servicoId: s.id,
-      data: n.data, inicio: hhmm(ini), fim: hhmm(ini + s.duracaoMin),
-      pagamento: n.convenioId ? { tipo: 'convenio', convenioId: n.convenioId } : { tipo: 'particular' },
-      valor: valorDoServico(s, n.convenioId), situacao: n.enviarWhatsapp ? 'agendado' : 'confirmado', eventos: [],
-    });
-    ini += s.duracaoMin;
-  }
+      data: n.data, inicio, fim: hhmm(minutos(inicio) + s.duracaoMin),
+      valor: s.valorParticular, situacao: n.enviarWhatsapp ? 'agendado' : 'confirmado', eventos: [],
+    };
+  });
   b.agendamentos.push(...criados);
   evento(criados, `Agendado ${n.origem}`);
   if (n.enviarWhatsapp) evento(criados, 'Confirmação enviada pelo WhatsApp');
 
-  const comRetirada = servicos.filter((s) => s.retiradaDiaSeguinte);
+  const comRetirada = criados.filter((a) => b.servicos.find((s) => s.id === a.servicoId)?.retiradaDiaSeguinte);
   const ret = b.servicos.find((s) => s.id === ID_RETIRADA);
   if (comRetirada.length && ret) {
-    const quando = horarioDaRetirada(b, n.data, n.inicio, ret.duracaoMin);
+    const quando = horarioDaRetirada(b, n.data, comRetirada[0].inicio, ret.duracaoMin);
     if (quando) {
       const r: Agendamento = {
         id: novoId('ag'), clinicaId: b.clinica.id, visitaId: novoId('vis'), profissionalId: b.profissionais[0].id, pacienteId: n.pacienteId,
         servicoId: ret.id, data: quando.data, inicio: quando.inicio, fim: hhmm(minutos(quando.inicio) + ret.duracaoMin),
-        pagamento: { tipo: 'particular' }, valor: 0, situacao: n.enviarWhatsapp ? 'agendado' : 'confirmado', retiradaDe: visitaId,
-        eventos: [{ quando: agora(), texto: `Agendada sozinha: retirada do ${comRetirada.map((s) => s.nome).join(' e ')}` }],
+        valor: 0, situacao: n.enviarWhatsapp ? 'agendado' : 'confirmado', retiradaDe: visitaId,
+        eventos: [{ quando: agora(), texto: `Agendada sozinha: retirada do ${comRetirada.map((a) => b.servicos.find((s) => s.id === a.servicoId)?.nome).join(' e ')}` }],
       };
       if (n.enviarWhatsapp) r.eventos.push({ quando: agora(), texto: 'Avisado junto com a confirmação' });
       b.agendamentos.push(r);
@@ -112,21 +102,12 @@ export function cancelar(b: Base, visitaId: string, motivo: string) {
   evento(v, `Cancelado${motivo ? ': ' + motivo : ''}`);
 }
 
-/** Tira um serviço da visita sem cancelar o resto (ex.: paciente desistiu do ECG na hora). */
+/** Tira um serviço da visita sem cancelar o resto (ex.: paciente desistiu do ECG na hora). Os horários dos outros não mudam. */
 export function tirarDaVisita(b: Base, agendamentoId: string) {
   const a = b.agendamentos.find((x) => x.id === agendamentoId);
   if (!a) throw new Error('Serviço não encontrado');
   const srv = b.servicos.find((s) => s.id === a.servicoId);
-  const inicioVisita = itens(b, a.visitaId)[0].inicio;
   a.situacao = 'cancelado';
-  // os serviços que sobraram andam para frente, sem buraco no meio da visita
-  let cursor = minutos(inicioVisita);
-  for (const x of itens(b, a.visitaId)) {
-    const dur = minutos(x.fim) - minutos(x.inicio);
-    x.inicio = hhmm(cursor);
-    x.fim = hhmm(cursor + dur);
-    cursor += dur;
-  }
   evento(itens(b, a.visitaId, true), `${srv?.nome ?? 'Serviço'} retirado da visita`);
   if (srv?.retiradaDiaSeguinte && !itens(b, a.visitaId).some((x) => b.servicos.find((s) => s.id === x.servicoId)?.retiradaDiaSeguinte))
     for (const r of retiradaDa(b, a.visitaId)) r.situacao = 'cancelado';

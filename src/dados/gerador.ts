@@ -33,7 +33,7 @@ export const CLINICA_PADRAO: Clinica = {
 };
 
 const s = (id: string, nome: string, duracaoMin: number, valorParticular: number, extra: Partial<Servico> = {}): Servico =>
-  ({ id, clinicaId: CLINICA, nome, duracaoMin, valorParticular, valoresConvenio: {}, custoPorExame: 0, ativo: true, ...extra });
+  ({ id, clinicaId: CLINICA, nome, duracaoMin, valorParticular, custoPorExame: 0, ativo: true, ...extra });
 
 // Preços reais da clínica
 export const SERVICOS_PADRAO: Servico[] = [
@@ -199,7 +199,7 @@ export function gerarBase(hoje = hojeIso(), agora = agoraHHMM(), semente = 2026)
       for (const servico of servs) {
         const ag: Agendamento = {
           id: `ag_${++n}`, clinicaId: CLINICA, visitaId, profissionalId: PROF, pacienteId: pac.id, servicoId: servico.id,
-          data: d, inicio: hhmm(cursor), fim: hhmm(cursor + servico.duracaoMin), pagamento: { tipo: 'particular' }, valor: servico.valorParticular,
+          data: d, inicio: hhmm(cursor), fim: hhmm(cursor + servico.duracaoMin), valor: servico.valorParticular,
           situacao, chegouAs, eventos: eventos.map((e) => ({ ...e })),
         };
         cursor += servico.duracaoMin;
@@ -220,7 +220,7 @@ export function gerarBase(hoje = hojeIso(), agora = agoraHHMM(), semente = 2026)
         const passouR = dr < hoje || (dr === hoje && iniR + 15 <= minutos(agora));
         agendamentos.push({
           id: `ag_${++n}`, clinicaId: CLINICA, visitaId: `vis_${++n}`, profissionalId: PROF, pacienteId: pac.id, servicoId: 'srv_retirada',
-          data: dr, inicio: hhmm(iniR), fim: hhmm(iniR + 15), pagamento: { tipo: 'particular' }, valor: 0, retiradaDe: visitaId,
+          data: dr, inicio: hhmm(iniR), fim: hhmm(iniR + 15), valor: 0, retiradaDe: visitaId,
           situacao: passouR ? 'atendido' : 'confirmado',
           eventos: [{ quando: eventos[0].quando, texto: `Agendada sozinha: retirada do ${servs.filter((x) => x.retiradaDiaSeguinte).map((x) => x.nome).join(' e ')}` }, { quando: eventos[0].quando, texto: 'Avisado junto com a confirmação' }, ...(passouR ? [{ quando: quando(dr, hhmm(iniR)), texto: 'Aparelho devolvido' }] : [])],
         });
@@ -295,7 +295,6 @@ export function gerarBase(hoje = hojeIso(), agora = agoraHHMM(), semente = 2026)
       { id: 'usr_flavia', clinicaId: CLINICA, nome: 'Dra. Flávia', email: 'flavia@ioclinic.exemplo', perfil: 'medica', ativo: true },
       { id: 'usr_recepcao', clinicaId: CLINICA, nome: 'Recepção', email: 'recepcao@ioclinic.exemplo', perfil: 'recepcao', ativo: true },
     ],
-    convenios: [{ id: 'conv_unimed', clinicaId: CLINICA, nome: 'Unimed', ativo: true }],
     servicos: SERVICOS_PADRAO.map((x) => ({ ...x })),
     pacientes, agendamentos, pagamentos, despesas, despesasFixas, registros, documentos,
   };

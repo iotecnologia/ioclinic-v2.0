@@ -41,14 +41,15 @@ Regra geral: **a tela só consulta**. Incluir, alterar, receber e registrar acon
 | **Pacientes** | Quem é o paciente? | Novo paciente | Cadastro do paciente |
 | Ficha do paciente | O que o paciente já fez e pagou? | Novo agendamento | Editar cadastro · Emitir documento · Novo agendamento |
 | **Caixa** (Dra.) | Onde ganho e onde perco? | Lançar despesa | Lançar despesa · Despesa fixa · Exportar CSV |
-| **Configurações** (Dra.) | — | Novo serviço / convênio / usuário | Serviço · Convênio · Usuário · Mensagem do WhatsApp |
+| **Configurações** (Dra.) | — | Novo serviço / usuário | Serviço · Usuário · Mensagem do WhatsApp |
 
 ## Visita com vários serviços
 
-No Novo agendamento os serviços ficam todos à vista, como botões: marcar dois ou mais monta a **visita**
-(feitos em sequência, no mesmo dia). A visita é uma linha só na agenda, com um "Chegou", um "Receber" (total),
-uma mensagem de confirmação, e remarcar/cancelar movem tudo junto. Dá para **tirar** um serviço da visita sem
-cancelar o resto (os seguintes andam para frente). No Caixa continua um lançamento por serviço.
+No Novo agendamento, cada linha é um exame com o seu horário; **"Adicionar outro exame"** inclui mais uma linha
+para o mesmo paciente no mesmo dia. **A recepcionista decide os horários**: todos no mesmo horário ou um depois do
+outro (o sistema sugere o horário logo após o anterior). Os exames formam a **visita**: uma linha só na agenda, com
+um "Chegou", um "Receber" (total), uma mensagem de confirmação; remarcar/cancelar movem tudo junto. Dá para
+**tirar** um exame da visita sem cancelar o resto. No Caixa continua um lançamento por serviço.
 
 **Holter e MAPA**: ao agendar, o sistema marca sozinho a **retirada do aparelho** no próximo dia de atendimento,
 no mesmo horário (ou no primeiro livre), 15 minutos, sem custo. Ela acompanha a visita se for remarcada ou cancelada.
@@ -80,9 +81,9 @@ tests/                 testes das regras (Vitest)
 ## Modelo de dados — pontos para o backend
 
 - **Toda entidade tem `clinicaId`**: o mesmo sistema atende várias clínicas (venda para outros médicos).
-- **Agendamento = um serviço; `visitaId` junta os serviços da mesma visita.** A retirada do Holter/MAPA aponta para a visita de origem (`retiradaDe`).
+- **Agendamento = um serviço com o horário escolhido; `visitaId` junta os serviços da mesma visita.** A retirada do Holter/MAPA aponta para a visita de origem (`retiradaDe`).
 - **Agendamento tem `profissionalId`**: hoje só a Dra.; a clínica pode crescer com outros médicos.
-- **Pagamento particular ou por convênio**: cada serviço tem valor particular e valor por convênio (`valoresConvenio`).
+- **Só particular**: a clínica não atende convênio; cada serviço tem um valor.
 - **Serviço usado não é excluído**, só desativado (o histórico e o caixa dependem dele).
 - **Custo por exame** (repasse/material) entra nos custos do Caixa a cada atendimento.
 - **Resultado do mês** = recebido − impostos (alíquota) − taxas da maquininha − custos dos exames − gastos fixos.

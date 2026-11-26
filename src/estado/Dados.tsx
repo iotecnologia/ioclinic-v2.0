@@ -5,7 +5,7 @@ import type { Base } from '../tipos/modelos';
 import { gerarBase } from '../dados/gerador';
 import { hoje } from '../regras/formato';
 
-const CHAVE = 'ioclinic:v3'; // mudou o formato dos dados (visitas): versão nova descarta a base antiga do navegador
+const CHAVE = 'ioclinic:v4'; // mudou o formato dos dados (visitas, sem convênio): versão nova descarta a base antiga do navegador
 
 function carregar(): Base {
   try {
