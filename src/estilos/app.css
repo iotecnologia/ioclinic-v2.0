@@ -141,6 +141,8 @@ tr.total td { font-weight: 600; border-top: 1px solid var(--linha); border-botto
 .lista-exames { display: grid; gap: 8px; }
 .linha-exame { display: grid; grid-template-columns: minmax(0, 1fr) 110px auto; gap: 8px; }
 .grade-check { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+.taxas { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.taxas label.rot { font-weight: 400; color: var(--mut); }
 .escolher-horario { display: grid; grid-template-columns: 260px 1fr; gap: 22px; }
 
 /* ---------- partes que mudam com o tamanho da tela ---------- */
@@ -209,6 +211,7 @@ tr.total td { font-weight: 600; border-top: 1px solid var(--linha); border-botto
   .janela .jr .dir { margin-left: 0; width: 100%; }
   .janela .jr .dir button { flex: 1; }
   .linha2, .linha3 { grid-template-columns: 1fr; }
+  .taxas { grid-template-columns: 1fr 1fr; }
   .escolher-horario { grid-template-columns: 1fr; }
   .grade-check { grid-template-columns: 1fr 1fr; }
   .linha-exame { grid-template-columns: 1fr 1fr; }

@@ -13,6 +13,7 @@ export interface Usuario {
   email: string;
   perfil: Perfil; // médica = administradora (vê Caixa e Configurações)
   ativo: boolean;
+  senhaMock?: string; // SÓ NO MOCK. No sistema real a senha fica no serviço de autenticação (com hash), nunca no banco da clínica
 }
 
 export interface Clinica {

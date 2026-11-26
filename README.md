@@ -36,12 +36,12 @@ Regra geral: **a tela só consulta**. Incluir, alterar, receber e registrar acon
 
 | Tela | Pergunta que responde | Ação principal | Pop-ups |
 |---|---|---|---|
-| Login | — | Entrar | Recuperar senha |
+| Login | — | Entrar | Recuperar senha · Alterar minha senha (clicando no próprio nome, no topo) |
 | **Agenda** (inicial) | Quem vem hoje e o que precisa de atenção? | Novo agendamento | Detalhe da visita (Chegou, Receber, Confirmar, Remarcar, Faltou, Cancelar; Dra.: Registrar atendimento, Emitir documento) · Novo agendamento · Receber · Remarcar · Cancelar |
 | **Pacientes** | Quem é o paciente? | Novo paciente | Cadastro do paciente |
 | Ficha do paciente | O que o paciente já fez e pagou? | Novo agendamento | Editar cadastro · Emitir documento · Novo agendamento |
 | **Caixa** (Dra.) | Onde ganho e onde perco? | Lançar despesa | Lançar despesa · Despesa fixa · Exportar CSV |
-| **Configurações** (Dra.) | — | Novo serviço / usuário | Serviço · Usuário · Mensagem do WhatsApp |
+| **Configurações** (Dra.) | — | Novo serviço / usuário · Editar horários · Editar dados | Serviço · Usuário (definir nova senha) · Mensagem do WhatsApp · Horários · Dados da clínica (alíquota, taxas da maquininha, lembrete) |
 
 ## Visita com vários serviços
 
@@ -92,10 +92,10 @@ tests/                 testes das regras (Vitest)
 ## O que é simulado e precisa virar real
 
 - Envio e resposta de WhatsApp (API oficial da Meta, número da clínica).
-- Login, senha e recuperação de senha por e-mail (hoje senha única de demonstração).
+- Login, senha e recuperação de senha por e-mail. No mock a senha fica em `senhaMock` dentro da base do navegador; no sistema real vai para o serviço de autenticação (com hash).
 - Banco de dados, backup e regras de acesso por perfil e por clínica.
 - Termo de consentimento LGPD, exclusão de dados a pedido do paciente.
-- Bloqueios de agenda (feriados e férias) e edição dos horários de atendimento.
+- Bloqueios de agenda (feriados e férias).
 
 ## Celular e tablet
 

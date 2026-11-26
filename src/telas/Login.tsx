@@ -1,7 +1,7 @@
 // Entrada: logo da clínica de um lado, acesso com a marca IO do outro.
 import { useState } from 'react';
 import { useDados } from '../estado/Dados';
-import { SENHA_DEMO, useSessao } from '../estado/Sessao';
+import { senhaDe, useSessao } from '../estado/Sessao';
 
 export function Login() {
   const { base } = useDados();
@@ -14,7 +14,7 @@ export function Login() {
   const enviar = (e: React.FormEvent) => {
     e.preventDefault();
     const u = base.usuarios.find((x) => x.email.toLowerCase() === email.trim().toLowerCase() && x.ativo);
-    if (!u || senha !== SENHA_DEMO) { setErro('E-mail ou senha não conferem.'); return; }
+    if (!u || senha !== senhaDe(u)) { setErro('E-mail ou senha não conferem.'); return; }
     entrar(u);
     location.hash = '#/agenda';
   };

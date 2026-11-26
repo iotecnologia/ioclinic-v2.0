@@ -3,6 +3,7 @@ import { createContext, useContext, useState, type ReactNode } from 'react';
 import type { Usuario } from '../tipos/modelos';
 
 export const SENHA_DEMO = 'ioclinic';
+export const senhaDe = (u: Usuario) => u.senhaMock ?? SENHA_DEMO;
 const CHAVE = 'ioclinic:sessao';
 
 interface Ctx { usuario: Usuario | null; entrar: (u: Usuario) => void; sair: () => void }
