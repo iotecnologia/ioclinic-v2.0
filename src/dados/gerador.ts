@@ -20,7 +20,7 @@ export const CLINICA_PADRAO: Clinica = {
   cidade: 'Campinas/SP',
   whatsapp: '(19) 99406-4572',
   aliquotaImpostos: 16.33,
-  taxasCartao: { debito: 1.42, credito: 2.8, creditoParcelado: 3.05 },
+  taxasCartao: { debito: 1.42, credito: 2.8, creditoParcelado: 3.05, creditoLongo: 3.35 },
   horaLembrete: '10:00',
   horarios: {
     1: [{ inicio: '08:00', fim: '12:00' }, { inicio: '13:00', fim: '18:00' }],
@@ -32,22 +32,25 @@ export const CLINICA_PADRAO: Clinica = {
   },
 };
 
-const s = (id: string, nome: string, duracaoMin: number, valorParticular: number, custoPorExame = 0): Servico =>
-  ({ id, clinicaId: CLINICA, nome, duracaoMin, valorParticular, valoresConvenio: {}, custoPorExame, ativo: true });
+const s = (id: string, nome: string, duracaoMin: number, valorParticular: number, extra: Partial<Servico> = {}): Servico =>
+  ({ id, clinicaId: CLINICA, nome, duracaoMin, valorParticular, valoresConvenio: {}, custoPorExame: 0, ativo: true, ...extra });
 
+// Preços reais da clínica
 export const SERVICOS_PADRAO: Servico[] = [
-  s('srv_consulta', 'Consulta', 60, 600),
+  s('srv_consulta', 'Consulta cardiológica', 60, 600),
   s('srv_retorno', 'Retorno (até 30 dias)', 60, 0),
+  s('srv_ecg', 'Eletrocardiograma (ECG)', 30, 150),
   s('srv_eco', 'Ecocardiograma', 30, 300),
-  s('srv_ecg', 'Eletrocardiograma', 30, 150),
+  s('srv_holter', 'Holter 24h', 30, 230, { custoPorExame: 100, retiradaDiaSeguinte: true }),
+  s('srv_mapa', 'MAPA 24h', 30, 230, { custoPorExame: 100, retiradaDiaSeguinte: true }),
   s('srv_ergo', 'Teste ergométrico', 30, 300),
-  s('srv_mapa', 'MAPA 24h', 30, 230, 100),
-  s('srv_holter', 'Holter 24h', 30, 230, 100),
   s('srv_bio', 'Bioimpedância', 30, 150),
+  s('srv_ecodoppler', 'Ecodoppler', 30, 350),
+  s('srv_retirada', 'Retirada do aparelho', 15, 0, { interno: true }),
 ];
 
 // Peso de cada serviço no volume (mesma proporção da clínica real)
-const MIX: [string, number][] = [['srv_consulta', 130], ['srv_bio', 65], ['srv_eco', 37], ['srv_retorno', 20], ['srv_mapa', 14], ['srv_holter', 9], ['srv_ergo', 8], ['srv_ecg', 7]];
+const MIX: [string, number][] = [['srv_consulta', 130], ['srv_bio', 65], ['srv_eco', 37], ['srv_retorno', 20], ['srv_mapa', 14], ['srv_holter', 9], ['srv_ergo', 8], ['srv_ecg', 7], ['srv_ecodoppler', 5]];
 // Formas de pagamento na proporção real
 const FORMAS: [FormaPagamento, number][] = [['Crédito', 41], ['Débito', 26], ['PIX', 24], ['Dinheiro', 9]];
 
@@ -120,6 +123,7 @@ export function gerarBase(hoje = hojeIso(), agora = agoraHHMM(), semente = 2026)
   const registros: RegistroAtendimento[] = [];
   const documentos: Documento[] = [];
   const ultimaConsulta = new Map<string, string>();
+  const reservas = new Map<string, [number, number][]>(); // horários já tomados por retiradas de aparelho
   let n = 0;
 
   for (let d = inicio; d <= fimAgenda; d = somarDias(d, 1)) {
@@ -131,93 +135,129 @@ export function gerarBase(hoje = hojeIso(), agora = agoraHHMM(), semente = 2026)
     const mesesAtras = (paraData(hoje).getTime() - paraData(d).getTime()) / (864e5 * 30);
     let qtd = d === hoje ? 5 : d === somarDias(hoje, 1) ? 4 : futuro ? Math.round((3.2 - distancia / 12) * r() + 0.8) : Math.round(r() * (3.3 - mesesAtras * 0.12) + 0.3);
     if (diaSemana(d) === 6) qtd = Math.min(qtd, 2);
-    const ocupados: [number, number][] = [];
-    for (let k = 0; k < qtd * 3 && ocupados.length < qtd; k++) {
+    const ocupados: [number, number][] = [...(reservas.get(d) ?? [])];
+    let feitos = 0;
+    for (let k = 0; k < qtd * 3 && feitos < qtd; k++) {
       const sorteado = pesado(MIX);
-      const servico = SERVICOS_PADRAO.find((x) => x.id === sorteado)!;
+      const servs = [SERVICOS_PADRAO.find((x) => x.id === sorteado)!];
+      // parte das consultas já sai com um exame em seguida (mesma visita)
+      if (sorteado === 'srv_consulta' && r() < 0.3) {
+        const extra = escolha(['srv_eco', 'srv_ecg', 'srv_bio']);
+        servs.push(SERVICOS_PADRAO.find((x) => x.id === extra)!);
+      }
+      const dur = servs.reduce((a, x) => a + x.duracaoMin, 0);
       const t = escolha(turnos);
-      const slots = (minutos(t.fim) - minutos(t.inicio) - servico.duracaoMin) / 30;
+      const slots = (minutos(t.fim) - minutos(t.inicio) - dur) / 30;
+      if (slots < 0) continue;
       const ini = minutos(t.inicio) + Math.floor(r() * (slots + 1)) * 30;
-      const fim = ini + servico.duracaoMin;
+      const fim = ini + dur;
       if (ocupados.some(([a, b]) => ini < b && fim > a)) continue;
-      ocupados.push([ini, fim]);
       let pac = escolha(pacientes);
-      if (servico.id === 'srv_retorno') {
+      if (sorteado === 'srv_retorno') {
         // retorno só para quem teve consulta nos últimos 30 dias
         const cand = [...ultimaConsulta].filter(([, data]) => data >= somarDias(d, -30) && data < d);
-        if (!cand.length) { ocupados.pop(); continue; }
+        if (!cand.length) continue;
         const alvo = escolha(cand)[0];
         pac = pacientes.find((p) => p.id === alvo)!;
       }
-      const ag: Agendamento = {
-        id: `ag_${++n}`, clinicaId: CLINICA, profissionalId: PROF, pacienteId: pac.id, servicoId: servico.id,
-        data: d, inicio: hhmm(ini), fim: hhmm(fim), pagamento: { tipo: 'particular' }, valor: servico.valorParticular,
-        situacao: 'agendado', eventos: [],
-      };
+      ocupados.push([ini, fim]);
+      feitos++;
+      const visitaId = `vis_${++n}`;
+      const eventos: { quando: string; texto: string }[] = [];
       const marcadoEm = somarDias(d, -(2 + Math.floor(r() * 12)));
       const horaMarcou = hhmm(8 * 60 + Math.floor(r() * 18) * 30);
-      ag.eventos.push({ quando: quando(marcadoEm, horaMarcou), texto: r() < 0.3 ? 'Agendado pelo paciente no WhatsApp' : 'Agendado pela recepção' });
-      ag.eventos.push({ quando: quando(marcadoEm, horaMarcou), texto: 'Confirmação enviada pelo WhatsApp' });
+      eventos.push({ quando: quando(marcadoEm, horaMarcou), texto: r() < 0.3 ? 'Agendado pelo paciente no WhatsApp' : 'Agendado pela recepção' });
+      eventos.push({ quando: quando(marcadoEm, horaMarcou), texto: 'Confirmação enviada pelo WhatsApp' });
       const respondeu = r();
       const vesperaPassou = somarDias(d, -1) < hoje || (somarDias(d, -1) === hoje && agora >= CLINICA_PADRAO.horaLembrete);
       const ehHoje = d === hoje;
-      const passou = d < hoje || (ehHoje && minutos(hhmm(fim)) <= minutos(agora));
-      const emCurso = ehHoje && !passou && minutos(hhmm(ini)) <= minutos(agora) + 20;
+      const passou = d < hoje || (ehHoje && fim <= minutos(agora));
+      const emCurso = ehHoje && !passou && ini <= minutos(agora) + 20;
 
       let situacao: Situacao;
-      if (!futuro && !ehHoje || passou) {
-        situacao = r() < 0.035 ? 'faltou' : 'atendido';
-      } else if (emCurso) situacao = 'na_clinica';
+      if (!futuro && !ehHoje || passou) situacao = r() < 0.035 ? 'faltou' : 'atendido';
+      else if (emCurso) situacao = 'na_clinica';
       else if (respondeu < 0.12) situacao = 'sem_resposta';
-      else if (respondeu < 0.16 && d === somarDias(hoje, 1)) situacao = 'pediu_remarcar';
       else situacao = distancia > 6 && respondeu > 0.6 ? 'agendado' : 'confirmado';
 
-      if (situacao !== 'sem_resposta' && situacao !== 'agendado') ag.eventos.push({ quando: quando(marcadoEm, hhmm(minutos(horaMarcou) + 40)), texto: situacao === 'pediu_remarcar' ? 'Paciente pediu para remarcar' : 'Paciente confirmou' });
-      if (vesperaPassou && situacao !== 'pediu_remarcar') ag.eventos.push({ quando: quando(somarDias(d, -1), CLINICA_PADRAO.horaLembrete), texto: 'Lembrete enviado pelo WhatsApp' });
+      if (situacao !== 'sem_resposta' && situacao !== 'agendado') eventos.push({ quando: quando(marcadoEm, hhmm(minutos(horaMarcou) + 40)), texto: 'Paciente confirmou' });
+      if (vesperaPassou) eventos.push({ quando: quando(somarDias(d, -1), CLINICA_PADRAO.horaLembrete), texto: 'Lembrete enviado pelo WhatsApp' });
+      let chegouAs: string | undefined;
       if (situacao === 'atendido' || situacao === 'na_clinica') {
-        ag.chegouAs = hhmm(ini - 5 - Math.floor(r() * 15));
-        ag.eventos.push({ quando: quando(d, ag.chegouAs), texto: 'Chegou à clínica' });
+        chegouAs = hhmm(ini - 5 - Math.floor(r() * 15));
+        eventos.push({ quando: quando(d, chegouAs), texto: 'Chegou à clínica' });
       }
-      if (situacao === 'faltou') ag.eventos.push({ quando: quando(d, hhmm(fim)), texto: 'Marcado como falta' });
-      ag.situacao = situacao;
+      if (situacao === 'faltou') eventos.push({ quando: quando(d, hhmm(fim)), texto: 'Marcado como falta' });
+      if (situacao === 'atendido') eventos.push({ quando: quando(d, hhmm(fim)), texto: 'Atendimento registrado' });
+      const forma = pesado(FORMAS);
+      const total = servs.reduce((a, x) => a + x.valorParticular, 0);
+      const parcelas = forma === 'Crédito' && total >= 600 && r() < 0.3 ? 2 : 1;
+      if (situacao === 'atendido' && total > 0) eventos.push({ quando: quando(d, hhmm(fim + 5)), texto: `Pagamento recebido · ${forma}${parcelas > 1 ? ` ${parcelas}x` : ''}` });
+
+      let cursor = ini;
+      const criados: Agendamento[] = [];
+      for (const servico of servs) {
+        const ag: Agendamento = {
+          id: `ag_${++n}`, clinicaId: CLINICA, visitaId, profissionalId: PROF, pacienteId: pac.id, servicoId: servico.id,
+          data: d, inicio: hhmm(cursor), fim: hhmm(cursor + servico.duracaoMin), pagamento: { tipo: 'particular' }, valor: servico.valorParticular,
+          situacao, chegouAs, eventos: eventos.map((e) => ({ ...e })),
+        };
+        cursor += servico.duracaoMin;
+        criados.push(ag);
+        if (situacao === 'atendido' && ag.valor > 0)
+          pagamentos.push({ id: `pg_${n}`, clinicaId: CLINICA, agendamentoId: ag.id, pacienteId: pac.id, servicoId: servico.id, data: d, valor: ag.valor, forma, parcelas, taxa: taxaMaquininha(CLINICA_PADRAO, forma, parcelas, ag.valor) });
+      }
+      agendamentos.push(...criados);
+
+      // Holter/MAPA: retirada do aparelho no próximo dia de atendimento, mesmo horário, 15 min
+      if (servs.some((x) => x.retiradaDiaSeguinte) && situacao !== 'faltou') {
+        let dr = somarDias(d, 1);
+        while (!CLINICA_PADRAO.horarios[diaSemana(dr)]) dr = somarDias(dr, 1);
+        const turnosR = CLINICA_PADRAO.horarios[diaSemana(dr)]!;
+        const cabe = turnosR.some((tr) => ini >= minutos(tr.inicio) && ini + 15 <= minutos(tr.fim));
+        const iniR = cabe ? ini : minutos(turnosR[0].inicio);
+        reservas.set(dr, [...(reservas.get(dr) ?? []), [iniR, iniR + 30]]);
+        const passouR = dr < hoje || (dr === hoje && iniR + 15 <= minutos(agora));
+        agendamentos.push({
+          id: `ag_${++n}`, clinicaId: CLINICA, visitaId: `vis_${++n}`, profissionalId: PROF, pacienteId: pac.id, servicoId: 'srv_retirada',
+          data: dr, inicio: hhmm(iniR), fim: hhmm(iniR + 15), pagamento: { tipo: 'particular' }, valor: 0, retiradaDe: visitaId,
+          situacao: passouR ? 'atendido' : 'confirmado',
+          eventos: [{ quando: eventos[0].quando, texto: `Agendada sozinha: retirada do ${servs.filter((x) => x.retiradaDiaSeguinte).map((x) => x.nome).join(' e ')}` }, { quando: eventos[0].quando, texto: 'Avisado junto com a confirmação' }, ...(passouR ? [{ quando: quando(dr, hhmm(iniR)), texto: 'Aparelho devolvido' }] : [])],
+        });
+      }
 
       if (situacao === 'atendido') {
-        ag.eventos.push({ quando: quando(d, hhmm(fim)), texto: 'Atendimento registrado' });
-        if (servico.id === 'srv_consulta') ultimaConsulta.set(pac.id, d);
-        if (ag.valor > 0) {
-          const forma = pesado(FORMAS);
-          const parcelas = forma === 'Crédito' && ag.valor >= 600 && r() < 0.3 ? 2 : 1;
-          pagamentos.push({ id: `pg_${n}`, clinicaId: CLINICA, agendamentoId: ag.id, pacienteId: pac.id, servicoId: servico.id, data: d, valor: ag.valor, forma, parcelas, taxa: taxaMaquininha(CLINICA_PADRAO, forma, parcelas, ag.valor) });
-          ag.eventos.push({ quando: quando(d, hhmm(fim + 5)), texto: `Pagamento recebido · ${forma}${parcelas > 1 ? ` ${parcelas}x` : ''}` });
-        }
-        if (servico.id === 'srv_consulta' || servico.id === 'srv_retorno') {
+        if (sorteado === 'srv_consulta') ultimaConsulta.set(pac.id, d);
+        if (sorteado === 'srv_consulta' || sorteado === 'srv_retorno') {
           const [cid, desc] = escolha(CIDS);
           const exames = r() < 0.5 ? [escolha(['Ecocardiograma', 'Holter 24h', 'MAPA 24h', 'Teste ergométrico', 'Perfil lipídico', 'Hemograma'])] : [];
-          registros.push({ id: `reg_${n}`, clinicaId: CLINICA, agendamentoId: ag.id, pacienteId: pac.id, data: d, cid: `${cid} · ${desc}`, observacao: escolha(['Paciente estável, manter conduta.', 'Ajustada a medicação. Reavaliar no retorno.', 'Orientado sobre dieta e atividade física.', 'Solicitados exames para investigação.']), examesPedidos: exames, retornoDias: servico.id === 'srv_consulta' ? 30 : null });
+          registros.push({ id: `reg_${n}`, clinicaId: CLINICA, agendamentoId: criados[0].id, pacienteId: pac.id, data: d, cid: `${cid} · ${desc}`, observacao: escolha(['Paciente estável, manter conduta.', 'Ajustada a medicação. Reavaliar no retorno.', 'Orientado sobre dieta e atividade física.', 'Solicitados exames para investigação.']), examesPedidos: exames, retornoDias: sorteado === 'srv_consulta' ? 30 : null });
           if (r() < 0.45) documentos.push({ id: `doc_${n}`, clinicaId: CLINICA, pacienteId: pac.id, tipo: exames.length ? 'pedido_exames' : 'receita', data: d, conteudo: exames.join(', ') || 'Losartana potássica 50 mg' });
         }
       }
-      agendamentos.push(ag);
       if (!pac.criadoEm || marcadoEm < pac.criadoEm) pac.criadoEm = marcadoEm;
     }
   }
   for (const p of pacientes) if (!p.criadoEm) p.criadoEm = inicio;
-  // demonstração: hoje um paciente ainda não respondeu; amanhã um pediu para remarcar
-  const futuroHoje = agendamentos.find((a) => a.data === hoje && a.situacao === 'confirmado');
-  if (futuroHoje) { futuroHoje.situacao = 'sem_resposta'; futuroHoje.eventos = futuroHoje.eventos.filter((e) => e.texto !== 'Paciente confirmou'); }
-  const amanha = agendamentos.filter((a) => a.data === somarDias(hoje, 1));
-  if (amanha.length > 1 && !amanha.some((a) => a.situacao === 'pediu_remarcar')) {
-    const x = amanha[1];
-    x.situacao = 'pediu_remarcar';
-    x.eventos = x.eventos.filter((e) => e.texto !== 'Paciente confirmou' && !e.texto.startsWith('Lembrete'));
-    x.eventos.push({ quando: quando(hoje, '09:12'), texto: 'Paciente pediu para remarcar (respondeu 2 no WhatsApp)' });
+  // demonstração (por visita): hoje um paciente ainda não respondeu; amanhã um pediu para remarcar;
+  // o último atendido de hoje ainda está "a receber"
+  const daVisita = (vid: string) => agendamentos.filter((a) => a.visitaId === vid);
+  const normal = (a: Agendamento) => a.servicoId !== 'srv_retirada';
+  const futuroHoje = agendamentos.find((a) => a.data === hoje && a.situacao === 'confirmado' && normal(a));
+  if (futuroHoje) for (const x of daVisita(futuroHoje.visitaId)) { x.situacao = 'sem_resposta'; x.eventos = x.eventos.filter((e) => e.texto !== 'Paciente confirmou'); }
+  const amanha = agendamentos.filter((a) => a.data === somarDias(hoje, 1) && normal(a));
+  if (amanha.length > 1) {
+    for (const x of daVisita(amanha[1].visitaId)) {
+      x.situacao = 'pediu_remarcar';
+      x.eventos = x.eventos.filter((e) => e.texto !== 'Paciente confirmou' && !e.texto.startsWith('Lembrete'));
+      x.eventos.push({ quando: quando(hoje, '09:12'), texto: 'Paciente pediu para remarcar (respondeu 2 no WhatsApp)' });
+    }
   }
-  // demonstração: o último atendido de hoje ainda está "a receber"
   const ultimoHoje = agendamentos.filter((a) => a.data === hoje && a.situacao === 'atendido' && a.valor > 0).sort((x, y) => x.inicio.localeCompare(y.inicio)).pop();
-  if (ultimoHoje) {
-    const i = pagamentos.findIndex((p) => p.agendamentoId === ultimoHoje.id);
+  if (ultimoHoje) for (const x of daVisita(ultimoHoje.visitaId)) {
+    const i = pagamentos.findIndex((p) => p.agendamentoId === x.id);
     if (i >= 0) pagamentos.splice(i, 1);
-    ultimoHoje.eventos = ultimoHoje.eventos.filter((e) => !e.texto.startsWith('Pagamento'));
+    x.eventos = x.eventos.filter((e) => !e.texto.startsWith('Pagamento'));
   }
 
   // ---------- despesas: fixas todo mês (com pequena variação) + algumas variáveis ----------

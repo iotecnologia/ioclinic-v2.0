@@ -46,11 +46,11 @@ export function Caixa() {
       <div className="cab">
         <h1>Caixa</h1>
         <button className="seta" disabled={mes <= primeiroMes} onClick={() => setMes(somarMes(mes, -1))} aria-label="Mês anterior">‹</button>
-        <span style={{ fontSize: 17, minWidth: 170, textAlign: 'center' }}>{nomeMes(mes)}</span>
+        <span className="dia" style={{ minWidth: 150 }}>{nomeMes(mes)}</span>
         <button className="seta" disabled={emAndamento} onClick={() => setMes(somarMes(mes, 1))} aria-label="Próximo mês">›</button>
         <div className="acoes"><button onClick={exportar}>Exportar</button><button className="pri" onClick={() => setDespesa(true)}>Lançar despesa</button></div>
       </div>
-      <div className="abas">
+      <div className="abas rolagem">
         <a className={aba === 'resultado' ? 'on' : ''} onClick={() => setAba('resultado')}>Resultado</a>
         <a className={aba === 'lancamentos' ? 'on' : ''} onClick={() => setAba('lancamentos')}>Lançamentos</a>
         <a className={aba === 'fixas' ? 'on' : ''} onClick={() => setAba('fixas')}>Despesas fixas</a>
@@ -58,7 +58,7 @@ export function Caixa() {
 
       {aba === 'resultado' && (
         <>
-          <div className="colunas" style={{ gridTemplateColumns: '1fr 1fr' }}>
+          <div className="colunas duas">
             <div>
               <h3>Resultado de {MESES[Number(mes.slice(5)) - 1]}{emAndamento ? ' (até hoje)' : ''}</h3>
               <table>
@@ -81,14 +81,14 @@ export function Caixa() {
               <table><tbody>{r.porCategoria.map((x) => <tr key={x.categoria}><td>{x.categoria}</td><td className="num">{brl(x.valor)}</td></tr>)}</tbody></table>
             </div>
           </div>
-          <div style={{ marginTop: 30 }}><h3>Últimos meses</h3><Grafico ate={mes} /></div>
+          <div style={{ marginTop: 30 }}><h3>Últimos meses</h3><div className="rolagem"><div style={{ minWidth: 640 }}><Grafico ate={mes} /></div></div></div>
         </>
       )}
 
       {aba === 'lancamentos' && <Lancamentos mes={mes} />}
 
       {aba === 'fixas' && (
-        <table>
+        <div className="rolagem"><table>
           <thead><tr><th>Despesa</th><th>Categoria</th><th>Vencimento</th><th className="num">Valor</th><th>Situação</th></tr></thead>
           <tbody>
             {base.despesasFixas.map((f) => (
@@ -98,7 +98,7 @@ export function Caixa() {
             ))}
             <tr className="total"><td colSpan={3}>Total por mês (ativas)</td><td className="num">{brl(base.despesasFixas.filter((f) => f.ativa).reduce((s, f) => s + f.valor, 0))}</td><td /></tr>
           </tbody>
-        </table>
+        </table></div>
       )}
 
       {despesa && <LancarDespesa onFechar={() => setDespesa(false)} />}
@@ -122,18 +122,18 @@ function Lancamentos({ mes }: { mes: string }) {
   const total = linhas.reduce((s, l) => s + l.valor, 0);
   return (
     <>
-      <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+      <div className="filtros">
         <select value={filtro} onChange={(e) => setFiltro(e.target.value as typeof filtro)}><option value="todos">Entradas e saídas</option><option value="entradas">Só entradas</option><option value="saidas">Só saídas</option></select>
-        <input placeholder="Buscar" style={{ width: 280 }} value={termo} onChange={(e) => setTermo(e.target.value)} />
+        <input className="busca" placeholder="Buscar" value={termo} onChange={(e) => setTermo(e.target.value)} />
       </div>
-      <table>
+      <div className="rolagem"><table>
         <thead><tr><th>Data</th><th>Descrição</th><th>Serviço / categoria</th><th>Forma</th><th className="num">Valor</th><th className="num">Taxa</th></tr></thead>
         <tbody>
           {linhas.map((l) => <tr key={l.id}><td>{diaMes(l.data)}</td><td>{l.desc}</td><td>{l.cat}</td><td>{l.forma}</td><td className={'num ' + (l.valor < 0 ? 'neg' : '')}>{brl(l.valor)}</td><td className="num mut">{l.taxa ? brl(l.taxa) : '—'}</td></tr>)}
           {!linhas.length && <tr><td colSpan={6} className="vazio">Nenhum lançamento.</td></tr>}
           {linhas.length > 0 && <tr className="total"><td colSpan={4}>Saldo dos lançamentos listados</td><td className={'num ' + (total < 0 ? 'neg' : 'pos')}>{brl(total, true)}</td><td /></tr>}
         </tbody>
-      </table>
+      </table></div>
     </>
   );
 }

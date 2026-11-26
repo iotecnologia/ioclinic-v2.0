@@ -1,7 +1,8 @@
 // Emitir documento: receita, atestado, declaração de comparecimento e pedido de exames.
 // Sai no modelo da Dra. (timbre, CRM/RQE, endereço), preto no branco, para imprimir e assinar à mão.
 import { useState } from 'react';
-import type { Agendamento, TipoDocumento } from '../tipos/modelos';
+import type { TipoDocumento } from '../tipos/modelos';
+import type { Visita } from '../regras/agenda';
 import { useDados } from '../estado/Dados';
 import { emitirDocumento } from '../estado/acoes';
 import { MESES, hoje, paraData } from '../regras/formato';
@@ -13,7 +14,7 @@ const EXAMES = ['Ecocardiograma', 'Eletrocardiograma', 'Teste ergométrico', 'MA
 
 const extenso = (d: string) => { const x = paraData(d); return `${x.getDate()} de ${MESES[x.getMonth()]} de ${x.getFullYear()}`; };
 
-export function EmitirDocumento({ pacienteId, ag, onFechar }: { pacienteId: string; ag?: Agendamento; onFechar: () => void }) {
+export function EmitirDocumento({ pacienteId, visita, onFechar }: { pacienteId: string; visita?: Visita; onFechar: () => void }) {
   const { base, alterar } = useDados();
   const c = base.clinica;
   const pac = base.pacientes.find((p) => p.id === pacienteId)!;
@@ -22,11 +23,11 @@ export function EmitirDocumento({ pacienteId, ag, onFechar }: { pacienteId: stri
   const [dias, setDias] = useState(1);
   const [cid, setCid] = useState('');
   const [comCid, setComCid] = useState(false);
-  const [entrada, setEntrada] = useState(ag?.chegouAs ?? ag?.inicio ?? '08:00');
-  const [saida, setSaida] = useState(ag?.fim ?? '09:00');
+  const [entrada, setEntrada] = useState(visita?.itens[0].chegouAs ?? visita?.inicio ?? '08:00');
+  const [saida, setSaida] = useState(visita?.fim ?? '09:00');
   const [exames, setExames] = useState<string[]>([]);
   const [timbrado, setTimbrado] = useState(true);
-  const data = ag?.data ?? hoje();
+  const data = visita?.data ?? hoje();
 
   const corpo: Record<TipoDocumento, string> = {
     receita: receita,

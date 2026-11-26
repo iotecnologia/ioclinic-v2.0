@@ -6,7 +6,8 @@ export const CATEGORIAS_CUSTO = ['Repasse para outros profissionais', 'Material 
 export const CATEGORIA_IMPOSTOS = 'Impostos'; // pagos de fato; no resultado usamos a alíquota
 
 export function taxaMaquininha(c: Clinica, forma: FormaPagamento, parcelas: number, valor: number): number {
-  const p = forma === 'Débito' ? c.taxasCartao.debito : forma === 'Crédito' ? (parcelas > 1 ? c.taxasCartao.creditoParcelado : c.taxasCartao.credito) : 0;
+  const t = c.taxasCartao;
+  const p = forma === 'Débito' ? t.debito : forma === 'Crédito' ? (parcelas >= 7 ? t.creditoLongo : parcelas > 1 ? t.creditoParcelado : t.credito) : 0;
   return Math.round(valor * p) / 100;
 }
 

@@ -5,16 +5,16 @@ import { horariosLivres } from '../regras/agenda';
 import { agoraHHMM, dataExtenso, hoje } from '../regras/formato';
 import { Calendario } from './Calendario';
 
-export function EscolherHorario({ data, hora, duracao, ignorarId, onData, onHora }: {
-  data: string; hora: string; duracao: number; ignorarId?: string; onData: (d: string) => void; onHora: (h: string) => void;
+export function EscolherHorario({ data, hora, duracao, ignorarVisita, onData, onHora }: {
+  data: string; hora: string; duracao: number; ignorarVisita?: string; onData: (d: string) => void; onHora: (h: string) => void;
 }) {
   const { base } = useDados();
   const desde = (d: string) => (d === hoje() ? agoraHHMM() : undefined);
-  const livres = useMemo(() => horariosLivres(data, duracao, base.agendamentos, base.clinica, [], ignorarId, desde(data)), [data, duracao, base, ignorarId]);
+  const livres = useMemo(() => horariosLivres(data, duracao, base.agendamentos, base.clinica, [], ignorarVisita, desde(data)), [data, duracao, base, ignorarVisita]);
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 22 }}>
+    <div className="escolher-horario">
       <Calendario valor={data} onEscolher={(d) => { onData(d); onHora(''); }}
-        podeEscolher={(d) => d >= hoje() && horariosLivres(d, duracao, base.agendamentos, base.clinica, [], ignorarId, desde(d)).length > 0} />
+        podeEscolher={(d) => d >= hoje() && horariosLivres(d, duracao, base.agendamentos, base.clinica, [], ignorarVisita, desde(d)).length > 0} />
       <div>
         <label className="rot">Horários livres · {dataExtenso(data)}</label>
         {livres.length ? (

@@ -1,4 +1,4 @@
-// Regras da agenda: grade do dia (ocupados + livres), horários livres para um serviço e avisos.
+// Regras da agenda: visitas (serviços em sequência do mesmo paciente), grade do dia, horários livres e avisos.
 import type { Agendamento, Clinica, Situacao } from '../tipos/modelos';
 import { diaSemana, hhmm, minutos } from './formato';
 
@@ -21,33 +21,59 @@ export function ocupa(a: Agendamento): boolean {
   return a.situacao !== 'cancelado';
 }
 
-export type LinhaDia = { tipo: 'agendamento'; ag: Agendamento } | { tipo: 'livre'; inicio: string; fim: string };
+/** Serviços da visita, em ordem de horário. Com `todos=false`, ignora os cancelados (serviço tirado da visita). */
+export function servicosDaVisita(ags: Agendamento[], visitaId: string, todos = false): Agendamento[] {
+  return ags.filter((a) => a.visitaId === visitaId && (todos || ocupa(a))).sort((x, y) => minutos(x.inicio) - minutos(y.inicio));
+}
 
-/** Monta o dia: agendamentos em ordem e, entre eles, os intervalos livres dentro do horário de atendimento. */
+/** Uma visita vista como um bloco: início do primeiro serviço, fim do último. */
+export interface Visita { id: string; data: string; inicio: string; fim: string; pacienteId: string; itens: Agendamento[]; situacao: Situacao; valor: number }
+
+export function montarVisita(itens: Agendamento[]): Visita {
+  const vivos = itens.filter(ocupa);
+  const base = vivos.length ? vivos : itens;
+  const ord = [...base].sort((x, y) => minutos(x.inicio) - minutos(y.inicio));
+  return {
+    id: ord[0].visitaId, data: ord[0].data, inicio: ord[0].inicio, fim: ord[ord.length - 1].fim, pacienteId: ord[0].pacienteId,
+    itens: ord, situacao: ord[0].situacao, valor: ord.reduce((s, a) => s + a.valor, 0),
+  };
+}
+
+export function visitasDoDia(data: string, ags: Agendamento[], incluirCanceladas = false): Visita[] {
+  const porVisita = new Map<string, Agendamento[]>();
+  for (const a of ags) if (a.data === data) porVisita.set(a.visitaId, [...(porVisita.get(a.visitaId) ?? []), a]);
+  return [...porVisita.values()].map(montarVisita).filter((v) => incluirCanceladas || v.situacao !== 'cancelado')
+    .sort((x, y) => minutos(x.inicio) - minutos(y.inicio));
+}
+
+export type LinhaDia = { tipo: 'visita'; visita: Visita } | { tipo: 'livre'; inicio: string; fim: string };
+
+/** Monta o dia: visitas em ordem e, entre elas, os intervalos livres dentro do horário de atendimento. */
 export function gradeDoDia(data: string, ags: Agendamento[], clinica: Clinica, bloqueios: Bloqueio[] = []): LinhaDia[] {
   const turnos = bloqueios.some((b) => b.data === data) ? [] : clinica.horarios[diaSemana(data)] ?? [];
-  const doDia = ags.filter((a) => a.data === data && ocupa(a)).sort((x, y) => minutos(x.inicio) - minutos(y.inicio));
-  const linhas: LinhaDia[] = [];
+  const visitas = visitasDoDia(data, ags);
+  const linhas: LinhaDia[] = visitas.map((visita) => ({ tipo: 'visita', visita }));
   for (const t of turnos) {
     let cursor = minutos(t.inicio);
     const fimTurno = minutos(t.fim);
-    for (const a of doDia.filter((a) => minutos(a.inicio) >= minutos(t.inicio) && minutos(a.inicio) < fimTurno)) {
-      if (minutos(a.inicio) > cursor) linhas.push({ tipo: 'livre', inicio: hhmm(cursor), fim: a.inicio });
-      linhas.push({ tipo: 'agendamento', ag: a });
-      cursor = Math.max(cursor, minutos(a.fim));
+    for (const v of visitas) {
+      const ini = minutos(v.inicio), fim = minutos(v.fim);
+      if (fim <= cursor || ini >= fimTurno) continue;
+      if (ini > cursor) linhas.push({ tipo: 'livre', inicio: hhmm(cursor), fim: v.inicio });
+      cursor = Math.max(cursor, fim);
     }
     if (cursor < fimTurno) linhas.push({ tipo: 'livre', inicio: hhmm(cursor), fim: t.fim });
   }
-  // agendamentos fora do horário (encaixes) também aparecem
-  for (const a of doDia) if (!linhas.some((l) => l.tipo === 'agendamento' && l.ag.id === a.id)) linhas.push({ tipo: 'agendamento', ag: a });
-  return linhas.sort((x, y) => minutos(x.tipo === 'livre' ? x.inicio : x.ag.inicio) - minutos(y.tipo === 'livre' ? y.inicio : y.ag.inicio));
+  const ini = (l: LinhaDia) => minutos(l.tipo === 'livre' ? l.inicio : l.visita.inicio);
+  return linhas.sort((x, y) => ini(x) - ini(y) || (x.tipo === 'livre' ? 1 : -1));
 }
 
-/** Horários de início possíveis (a partir de `aPartirDe`, quando é hoje) para um serviço de `duracao` minutos (de 30 em 30), sem atravessar o almoço nem outro paciente. */
-export function horariosLivres(data: string, duracao: number, ags: Agendamento[], clinica: Clinica, bloqueios: Bloqueio[] = [], ignorarId?: string, aPartirDe?: string): string[] {
+/** Horários de início possíveis (a partir de `aPartirDe`, quando é hoje) para `duracao` minutos, de 30 em 30,
+ *  sem atravessar o almoço nem outro paciente. `ignorarVisita`: ao remarcar, a própria visita não conta como ocupada. */
+export function horariosLivres(data: string, duracao: number, ags: Agendamento[], clinica: Clinica, bloqueios: Bloqueio[] = [], ignorarVisita?: string, aPartirDe?: string): string[] {
   if (bloqueios.some((b) => b.data === data)) return [];
   const turnos = clinica.horarios[diaSemana(data)] ?? [];
-  const ocupados = ags.filter((a) => a.data === data && ocupa(a) && a.id !== ignorarId).map((a) => [minutos(a.inicio), minutos(a.fim)]);
+  const ocupados = ags.filter((a) => a.data === data && ocupa(a) && a.visitaId !== ignorarVisita).map((a) => [minutos(a.inicio), minutos(a.fim)]);
   const livres: string[] = [];
   for (const t of turnos) {
     for (let ini = minutos(t.inicio); ini + duracao <= minutos(t.fim); ini += 30) {

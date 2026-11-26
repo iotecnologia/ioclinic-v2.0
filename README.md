@@ -37,11 +37,22 @@ Regra geral: **a tela só consulta**. Incluir, alterar, receber e registrar acon
 | Tela | Pergunta que responde | Ação principal | Pop-ups |
 |---|---|---|---|
 | Login | — | Entrar | Recuperar senha |
-| **Agenda** (inicial) | Quem vem hoje e o que precisa de atenção? | Novo agendamento | Detalhe do agendamento (Chegou, Receber, Confirmar, Remarcar, Faltou, Cancelar; Dra.: Registrar atendimento, Emitir documento) · Novo agendamento · Receber · Remarcar · Cancelar |
+| **Agenda** (inicial) | Quem vem hoje e o que precisa de atenção? | Novo agendamento | Detalhe da visita (Chegou, Receber, Confirmar, Remarcar, Faltou, Cancelar; Dra.: Registrar atendimento, Emitir documento) · Novo agendamento · Receber · Remarcar · Cancelar |
 | **Pacientes** | Quem é o paciente? | Novo paciente | Cadastro do paciente |
 | Ficha do paciente | O que o paciente já fez e pagou? | Novo agendamento | Editar cadastro · Emitir documento · Novo agendamento |
 | **Caixa** (Dra.) | Onde ganho e onde perco? | Lançar despesa | Lançar despesa · Despesa fixa · Exportar CSV |
 | **Configurações** (Dra.) | — | Novo serviço / convênio / usuário | Serviço · Convênio · Usuário · Mensagem do WhatsApp |
+
+## Visita com vários serviços
+
+No Novo agendamento os serviços ficam todos à vista, como botões: marcar dois ou mais monta a **visita**
+(feitos em sequência, no mesmo dia). A visita é uma linha só na agenda, com um "Chegou", um "Receber" (total),
+uma mensagem de confirmação, e remarcar/cancelar movem tudo junto. Dá para **tirar** um serviço da visita sem
+cancelar o resto (os seguintes andam para frente). No Caixa continua um lançamento por serviço.
+
+**Holter e MAPA**: ao agendar, o sistema marca sozinho a **retirada do aparelho** no próximo dia de atendimento,
+no mesmo horário (ou no primeiro livre), 15 minutos, sem custo. Ela acompanha a visita se for remarcada ou cancelada.
+Qualquer serviço pode ter essa opção (Configurações → Serviços).
 
 ## Fluxo automático da agenda
 
@@ -69,6 +80,7 @@ tests/                 testes das regras (Vitest)
 ## Modelo de dados — pontos para o backend
 
 - **Toda entidade tem `clinicaId`**: o mesmo sistema atende várias clínicas (venda para outros médicos).
+- **Agendamento = um serviço; `visitaId` junta os serviços da mesma visita.** A retirada do Holter/MAPA aponta para a visita de origem (`retiradaDe`).
 - **Agendamento tem `profissionalId`**: hoje só a Dra.; a clínica pode crescer com outros médicos.
 - **Pagamento particular ou por convênio**: cada serviço tem valor particular e valor por convênio (`valoresConvenio`).
 - **Serviço usado não é excluído**, só desativado (o histórico e o caixa dependem dele).
@@ -83,6 +95,12 @@ tests/                 testes das regras (Vitest)
 - Banco de dados, backup e regras de acesso por perfil e por clínica.
 - Termo de consentimento LGPD, exclusão de dados a pedido do paciente.
 - Bloqueios de agenda (feriados e férias) e edição dos horários de atendimento.
+
+## Celular e tablet
+
+Até 1024px (tablet): some a coluna Pagamento da agenda e colunas secundárias; blocos lado a lado viram um embaixo do outro.
+Até 640px (celular): menu vira botão "Menu"; agenda em duas linhas por paciente; pop-ups ocupam a tela inteira com os botões embaixo;
+tabelas largas rolam para o lado.
 
 ## Padrão visual
 

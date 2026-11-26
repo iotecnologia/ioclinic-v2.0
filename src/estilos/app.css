@@ -136,3 +136,90 @@ tr.total td { font-weight: 600; border-top: 1px solid var(--linha); border-botto
   .folha, .folha * { visibility: visible; }
   .folha { position: absolute; left: 0; top: 0; width: 100%; border: 0; min-height: auto; }
 }
+
+/* ---------- serviços no Novo agendamento ---------- */
+.servicos { display: flex; flex-wrap: wrap; gap: 8px; }
+.servicos button.sel { border-color: var(--azul); background: var(--azul); color: #fff; font-weight: 600; }
+.resumo-servicos { margin: 10px 0 0; min-height: 20px; }
+.grade-check { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+.escolher-horario { display: grid; grid-template-columns: 260px 1fr; gap: 22px; }
+
+/* ---------- partes que mudam com o tamanho da tela ---------- */
+.so-celular { display: none; }
+.topo .botao-menu, .topo .menu-celular, .logo-celular { display: none; }
+.rolagem { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.abas.rolagem { white-space: nowrap; }
+.navega-dia { display: flex; align-items: center; gap: 12px; }
+.navega-dia .dia, .cab .dia { font-size: 17px; min-width: 260px; text-align: center; }
+.busca { width: 420px; max-width: 100%; }
+.filtros { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.filtros .busca { width: 280px; }
+.colunas.duas { grid-template-columns: 1fr 1fr; }
+.colunas.ficha { grid-template-columns: 1fr 320px; }
+.tabela-agenda .c-hora { width: 90px; } .tabela-agenda .c-serv { width: 240px; } .tabela-agenda .c-sit { width: 200px; } .tabela-agenda .c-pag { width: 240px; }
+
+/* Tablet (até 1024px) */
+@media (max-width: 1024px) {
+  .topo { padding: 0 20px; gap: 26px; }
+  .topo .clinica span { display: none; }
+  .topo .clinica { padding-right: 12px; }
+  main { padding: 22px 20px 50px; }
+  .so-desktop { display: none; }
+  .tabela-agenda .c-pag { width: 0; }
+  .colunas.duas { grid-template-columns: 1fr; }
+  .navega-dia .dia { min-width: 220px; }
+}
+
+/* Celular (até 640px) */
+@media (max-width: 640px) {
+  body { font-size: 15px; }
+  .topo { padding: 0 14px; gap: 10px; height: 56px; }
+  .topo .menu-largo, .topo .usuario { display: none; }
+  .topo .botao-menu { display: inline-block; }
+  .topo .menu-celular { display: flex; flex-direction: column; position: absolute; top: 56px; left: 0; right: 0; height: auto; gap: 0; background: #fff; border-bottom: 1px solid var(--divTopo); z-index: 6; }
+  .topo .menu-celular a { padding: 14px 18px; border-top: 1px solid var(--div); color: var(--azul); text-decoration: none; font-weight: 500; }
+  .topo .menu-celular a.on { font-weight: 700; background: var(--gelo); }
+  .topo .clinica { border-right: 0; padding-right: 0; }
+  main { padding: 16px 14px 40px; }
+  h1 { font-size: 20px; }
+  .cab { flex-wrap: wrap; gap: 10px; }
+  .cab .acoes { margin-left: 0; width: 100%; flex-wrap: wrap; }
+  .cab .acoes button { flex: 1; padding: 11px 14px; }
+  .cab-agenda h1 { width: 100%; }
+  .navega-dia { width: 100%; gap: 8px; flex-wrap: wrap; }
+  .navega-dia .dia, .cab .dia { min-width: 0; flex: 1; font-size: 15px; }
+  .so-largo { display: none; }
+  .so-celular { display: block; margin-top: 2px; }
+  .tabela-agenda .c-hora { width: 64px; }
+  .tabela-agenda .c-serv, .tabela-agenda .c-sit, .tabela-agenda .c-pag { width: 0; }
+  td, th { padding: 10px 8px; }
+  .faixa { flex-direction: column; gap: 4px; }
+  .busca, .filtros .busca { width: 100%; }
+  .colunas.ficha { grid-template-columns: 1fr; }
+  .colunas.ficha .lateral { order: -1; }
+  .dados { grid-template-columns: 110px 1fr; }
+  .marca-dagua { display: none; }
+  .rolagem > table { min-width: 560px; }
+
+  /* pop-up ocupa a tela, botões fixos embaixo */
+  .fundo-janela { padding: 0; align-items: stretch; }
+  .janela { width: 100% !important; max-height: none; height: 100%; border-radius: 0; border: 0; }
+  .janela .jb { flex: 1; }
+  .janela .jr { flex-wrap: wrap; padding: 12px 14px; }
+  .janela .jr button { flex: 1 1 auto; padding: 11px 12px; }
+  .janela .jr .dir { margin-left: 0; width: 100%; }
+  .janela .jr .dir button { flex: 1; }
+  .linha2, .linha3 { grid-template-columns: 1fr; }
+  .escolher-horario { grid-template-columns: 1fr; }
+  .grade-check { grid-template-columns: 1fr 1fr; }
+  .servicos button { flex: 1 1 calc(50% - 8px); padding: 11px 8px; white-space: normal; }
+  .horarios button { flex: 1 1 calc(25% - 8px); padding: 11px 4px; }
+  .doc-grade { grid-template-columns: 1fr; }
+  .folha { width: 100%; min-height: 0; padding: 22px 18px; }
+
+  /* login: só o formulário, logo pequeno em cima */
+  .login { grid-template-columns: 1fr; }
+  .login .marca { display: none; }
+  .login .form { padding: 30px 22px; border-left: 0; }
+  .logo-celular { display: block; width: 190px; margin: 0 auto 26px; }
+}

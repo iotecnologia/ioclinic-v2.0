@@ -32,10 +32,10 @@ export function Configuracoes() {
   return (
     <>
       <div className="cab"><h1>Configurações</h1><div className="acoes">{botao}</div></div>
-      <div className="abas">{ABAS.map(([id, n]) => <a key={id} className={aba === id ? 'on' : ''} onClick={() => setAba(id)}>{n}</a>)}</div>
+      <div className="abas rolagem">{ABAS.map(([id, n]) => <a key={id} className={aba === id ? 'on' : ''} onClick={() => setAba(id)}>{n}</a>)}</div>
 
       {aba === 'servicos' && (
-        <table>
+        <div className="rolagem"><table>
           <colgroup><col /><col style={{ width: 130 }} /><col style={{ width: 160 }} /><col style={{ width: 160 }} /><col style={{ width: 160 }} /><col style={{ width: 120 }} /></colgroup>
           <thead><tr><th>Serviço</th><th>Duração</th><th className="num">Valor particular</th><th className="num">Valor convênio</th><th className="num">Custo por exame</th><th>Situação</th></tr></thead>
           <tbody>{base.servicos.map((s) => (
@@ -46,7 +46,7 @@ export function Configuracoes() {
               <td className="num">{s.custoPorExame ? brl(s.custoPorExame) : '—'}</td><td>{s.ativo ? 'Ativo' : 'Desativado'}</td>
             </tr>
           ))}</tbody>
-        </table>
+        </table></div>
       )}
 
       {aba === 'horarios' && (
@@ -60,7 +60,7 @@ export function Configuracoes() {
       )}
 
       {aba === 'mensagens' && (
-        <table>
+        <div className="rolagem"><table>
           <colgroup><col style={{ width: 220 }} /><col /><col style={{ width: 160 }} /></colgroup>
           <thead><tr><th>Mensagem</th><th>Texto</th><th>Quando sai</th></tr></thead>
           <tbody>
@@ -68,7 +68,7 @@ export function Configuracoes() {
               <tr key={k} className="clicavel" onClick={() => setMsg(k)}><td>{n}</td><td style={{ whiteSpace: 'pre-wrap' }}>{msgs[k]}</td><td>{q}</td></tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
 
       {aba === 'convenios' && (
@@ -79,10 +79,10 @@ export function Configuracoes() {
       )}
 
       {aba === 'usuarios' && (
-        <table>
+        <div className="rolagem"><table>
           <thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Situação</th></tr></thead>
           <tbody>{base.usuarios.map((u) => <tr key={u.id} className="clicavel" onClick={() => setUsuario(u)}><td>{u.nome}</td><td>{u.email}</td><td>{u.perfil === 'medica' ? 'Médica (administradora)' : 'Recepção'}</td><td>{u.ativo ? 'Ativo' : 'Inativo'}</td></tr>)}</tbody>
-        </table>
+        </table></div>
       )}
 
       {aba === 'clinica' && (
@@ -93,7 +93,7 @@ export function Configuracoes() {
             <span className="mut">Endereço</span><span>{c.endereco} · {c.cidade}</span>
             <span className="mut">WhatsApp da clínica</span><span>{c.whatsapp}</span>
             <span className="mut">Alíquota de impostos</span><span>{String(c.aliquotaImpostos).replace('.', ',')}%</span>
-            <span className="mut">Taxas da maquininha</span><span>Débito {String(c.taxasCartao.debito).replace('.', ',')}% · Crédito {String(c.taxasCartao.credito).replace('.', ',')}% · Parcelado {String(c.taxasCartao.creditoParcelado).replace('.', ',')}%</span>
+            <span className="mut">Taxas da maquininha</span><span>Débito {String(c.taxasCartao.debito).replace('.', ',')}% · Crédito à vista {String(c.taxasCartao.credito).replace('.', ',')}% · 2x a 6x {String(c.taxasCartao.creditoParcelado).replace('.', ',')}% · 7x a 12x {String(c.taxasCartao.creditoLongo).replace('.', ',')}%</span>
           </div>
           <p style={{ marginTop: 30 }}><button onClick={() => { if (confirm('Voltar os dados de demonstração ao início?')) restaurar(); }}>Restaurar dados de demonstração</button></p>
         </>
@@ -110,7 +110,7 @@ export function Configuracoes() {
 function EditarServico({ servico, onFechar }: { servico: Servico | null; onFechar: () => void }) {
   const { base, alterar } = useDados();
   const [f, setF] = useState({
-    nome: servico?.nome ?? '', duracaoMin: servico?.duracaoMin ?? 30,
+    nome: servico?.nome ?? '', duracaoMin: servico?.duracaoMin ?? 30, retirada: servico?.retiradaDiaSeguinte ?? false,
     valor: servico ? String(servico.valorParticular).replace('.', ',') : '', custo: servico?.custoPorExame ? String(servico.custoPorExame).replace('.', ',') : '',
     conv: Object.fromEntries(base.convenios.map((c) => [c.id, servico?.valoresConvenio[c.id] != null ? String(servico.valoresConvenio[c.id]).replace('.', ',') : ''])) as Record<string, string>,
   });
@@ -120,7 +120,7 @@ function EditarServico({ servico, onFechar }: { servico: Servico | null; onFecha
     if (!f.nome.trim()) return setErro('Informe o nome.');
     const valoresConvenio: Record<string, number> = {};
     for (const [id, v] of Object.entries(f.conv)) if (v.trim()) valoresConvenio[id] = lerValor(v);
-    alterar((b) => salvarServico(b, { id: servico?.id, nome: f.nome.trim(), duracaoMin: f.duracaoMin, valorParticular: lerValor(f.valor), custoPorExame: lerValor(f.custo), valoresConvenio, ativo }));
+    alterar((b) => salvarServico(b, { id: servico?.id, nome: f.nome.trim(), duracaoMin: f.duracaoMin, valorParticular: lerValor(f.valor), custoPorExame: lerValor(f.custo), valoresConvenio, ativo, retiradaDiaSeguinte: f.retirada, interno: servico?.interno }));
     onFechar();
   };
   return (
@@ -132,7 +132,7 @@ function EditarServico({ servico, onFechar }: { servico: Servico | null; onFecha
       <div className="campos">
         <div><label className="rot">Nome</label><input className="w100" value={f.nome} onChange={(e) => setF({ ...f, nome: e.target.value })} autoFocus={!servico} /></div>
         <div className="linha3">
-          <div><label className="rot">Duração</label><select className="w100" value={f.duracaoMin} onChange={(e) => setF({ ...f, duracaoMin: Number(e.target.value) })}>{[15, 30, 45, 60, 90, 120].map((m) => <option key={m} value={m}>{m >= 60 ? `${m / 60} hora${m > 60 ? 's' : ''}`.replace('1.5 horas', '1h30') : `${m} min`}</option>)}</select></div>
+          <div><label className="rot">Duração</label><select className="w100" value={f.duracaoMin} onChange={(e) => setF({ ...f, duracaoMin: Number(e.target.value) })}>{[15, 30, 45, 60, 90, 120].map((m) => <option key={m} value={m}>{m === 90 ? '1h30' : m >= 60 ? `${m / 60} hora${m > 60 ? 's' : ''}` : `${m} min`}</option>)}</select></div>
           <div><label className="rot">Valor particular</label><input className="w100" value={f.valor} onChange={(e) => setF({ ...f, valor: e.target.value })} placeholder="R$ 0,00" /></div>
           <div><label className="rot">Custo por exame</label><input className="w100" value={f.custo} onChange={(e) => setF({ ...f, custo: e.target.value })} placeholder="R$ 0,00" /></div>
         </div>
@@ -142,6 +142,7 @@ function EditarServico({ servico, onFechar }: { servico: Servico | null; onFecha
               <tr key={c.id}><td style={{ padding: '6px 0' }}>{c.nome}</td><td className="num" style={{ padding: '6px 0' }}><input style={{ width: 140 }} value={f.conv[c.id] ?? ''} onChange={(e) => setF({ ...f, conv: { ...f.conv, [c.id]: e.target.value } })} placeholder="Não atende" /></td></tr>
             ))}</tbody></table></div>
         )}
+        {!servico?.interno && <label className="peq" style={{ display: 'flex', gap: 8 }}><input type="checkbox" checked={f.retirada} onChange={(e) => setF({ ...f, retirada: e.target.checked })} />Marcar a retirada do aparelho no dia seguinte</label>}
         {servico && <p className="mut peq" style={{ margin: 0 }}>{usos ? `Usado em ${usos} agendamentos. Valor novo vale para os próximos agendamentos; para tirar da agenda, desative.` : 'Ainda não foi usado: pode ser excluído.'}</p>}
         {erro && <div className="erro">{erro}</div>}
       </div>

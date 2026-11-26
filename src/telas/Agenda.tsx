@@ -1,53 +1,57 @@
-// Agenda: tela inicial das duas (recepção e Dra.). Um dia por vez; clicar no paciente abre o pop-up;
-// clicar num horário livre abre o Novo agendamento naquele horário.
+// Agenda: tela inicial das duas (recepção e Dra.). Um dia por vez; cada linha é uma VISITA
+// (um ou mais serviços do paciente em sequência). Clicar no paciente abre o pop-up; clicar num
+// horário livre abre o Novo agendamento naquele horário.
+// Celular: cada visita vira duas linhas (horário e nome; serviços e situação), sem a coluna de pagamento.
 import { useState } from 'react';
 import { useDados } from '../estado/Dados';
-import { gradeDoDia, PEDE_ATENCAO } from '../regras/agenda';
+import { gradeDoDia, PEDE_ATENCAO, visitasDoDia, type Visita } from '../regras/agenda';
 import { brl, dataExtenso, diaSemana, hoje, somarDias } from '../regras/formato';
 import { pagamentoDo } from '../estado/acoes';
 import { Calendario } from '../componentes/Calendario';
-import { DetalheAgendamento, NovoAgendamento, textoSituacao } from '../componentes/Agendamento';
-import type { Agendamento } from '../tipos/modelos';
+import { DetalheVisita, NovoAgendamento, textoSituacao } from '../componentes/Agendamento';
 
 export function Agenda() {
   const { base } = useDados();
   const [data, setData] = useState(hoje());
   const [calAberto, setCalAberto] = useState(false);
-  const [aberto, setAberto] = useState<string | null>(null);
+  const [aberta, setAberta] = useState<string | null>(null);
   const [novo, setNovo] = useState<{ data: string; hora?: string; paciente?: string } | null>(null);
 
   const linhas = gradeDoDia(data, base.agendamentos, base.clinica);
   const fechado = !base.clinica.horarios[diaSemana(data)];
-  const nome = (a: Agendamento) => base.pacientes.find((p) => p.id === a.pacienteId)?.nome ?? '';
-  const servico = (a: Agendamento) => base.servicos.find((s) => s.id === a.servicoId)?.nome ?? '';
+  const nome = (v: Visita) => base.pacientes.find((p) => p.id === v.pacienteId)?.nome ?? '';
+  const servicos = (v: Visita) => v.itens.map((a) => base.servicos.find((s) => s.id === a.servicoId)?.nome ?? '').join(' + ');
 
   // Atenção: hoje e amanhã, quem não respondeu ou pediu para remarcar
   const amanha = somarDias(hoje(), 1);
-  const atencao = base.agendamentos.filter((a) => (a.data === hoje() || a.data === amanha) && PEDE_ATENCAO.includes(a.situacao))
-    .sort((x, y) => (x.data + x.inicio).localeCompare(y.data + y.inicio));
+  const atencao = [...visitasDoDia(hoje(), base.agendamentos), ...visitasDoDia(amanha, base.agendamentos)].filter((v) => PEDE_ATENCAO.includes(v.situacao));
 
-  const pagamento = (a: Agendamento) => {
-    const p = pagamentoDo(base, a.id);
-    if (p) return `Recebido · ${p.forma} · ${brl(p.valor)}`;
-    if (a.valor === 0) return a.situacao === 'atendido' ? 'Sem custo' : '';
-    if (a.situacao === 'na_clinica' || a.situacao === 'atendido') return `A receber · ${brl(a.valor)}`;
+  const pagamento = (v: Visita) => {
+    const pagos = v.itens.map((a) => pagamentoDo(base, a.id)).filter(Boolean);
+    const total = v.itens.reduce((s, a) => s + a.valor, 0);
+    if (pagos.length && pagos.length === v.itens.filter((a) => a.valor > 0).length) return `Recebido · ${pagos[0]!.forma} · ${brl(pagos.reduce((s, p) => s + p!.valor, 0))}`;
+    if (total === 0) return v.situacao === 'atendido' ? 'Sem custo' : '';
+    if (v.situacao === 'na_clinica' || v.situacao === 'atendido') return `A receber · ${brl(total - pagos.reduce((s, p) => s + p!.valor, 0))}`;
     return '';
   };
-  const qtdPac = linhas.filter((l) => l.tipo === 'agendamento').length;
+  const classeSit = (v: Visita) => (PEDE_ATENCAO.includes(v.situacao) ? 'atencao' : v.situacao === 'faltou' ? 'neg' : '');
+  const qtdPac = linhas.filter((l) => l.tipo === 'visita').length;
   const qtdLivre = linhas.filter((l) => l.tipo === 'livre').length;
 
   return (
     <>
-      <div className="cab">
+      <div className="cab cab-agenda">
         <h1>Agenda</h1>
-        <button className="seta" onClick={() => setData(somarDias(data, -1))} aria-label="Dia anterior">‹</button>
-        <span style={{ fontSize: 17, minWidth: 260, textAlign: 'center' }}>{dataExtenso(data)}</span>
-        <button className="seta" onClick={() => setData(somarDias(data, 1))} aria-label="Próximo dia">›</button>
-        <div style={{ position: 'relative' }}>
-          <button className="link" onClick={() => setCalAberto(!calAberto)}>Calendário</button>
-          {calAberto && <div className="popover"><Calendario valor={data} onEscolher={(d) => { setData(d); setCalAberto(false); }} /></div>}
+        <div className="navega-dia">
+          <button className="seta" onClick={() => setData(somarDias(data, -1))} aria-label="Dia anterior">‹</button>
+          <span className="dia">{dataExtenso(data)}</span>
+          <button className="seta" onClick={() => setData(somarDias(data, 1))} aria-label="Próximo dia">›</button>
+          <div style={{ position: 'relative' }}>
+            <button className="link" onClick={() => setCalAberto(!calAberto)}>Calendário</button>
+            {calAberto && <div className="popover"><Calendario valor={data} onEscolher={(d) => { setData(d); setCalAberto(false); }} /></div>}
+          </div>
+          {data !== hoje() && <button className="link" onClick={() => setData(hoje())}>Hoje</button>}
         </div>
-        {data !== hoje() && <button className="link" onClick={() => setData(hoje())}>Hoje</button>}
         <div className="acoes"><button className="pri" onClick={() => setNovo({ data })}>Novo agendamento</button></div>
       </div>
 
@@ -55,11 +59,11 @@ export function Agenda() {
         <div className="faixa">
           <b>Atenção</b>
           <span>
-            {atencao.map((a, i) => (
-              <span key={a.id}>{i > 0 && ' · '}
-                <a style={{ color: 'inherit' }} onClick={() => { setData(a.data); setAberto(a.id); }}>
-                  {nome(a).split(' ').slice(0, 2).join(' ')} ({a.data === hoje() ? 'hoje' : 'amanhã'}, {a.inicio})
-                </a> {a.situacao === 'sem_resposta' ? 'não respondeu à confirmação' : 'pediu para remarcar'}
+            {atencao.map((v, i) => (
+              <span key={v.id}>{i > 0 && ' · '}
+                <a style={{ color: 'inherit' }} onClick={() => { setData(v.data); setAberta(v.id); }}>
+                  {nome(v).split(' ').slice(0, 2).join(' ')} ({v.data === hoje() ? 'hoje' : 'amanhã'}, {v.inicio})
+                </a> {v.situacao === 'sem_resposta' ? 'não respondeu à confirmação' : 'pediu para remarcar'}
               </span>
             ))}
           </span>
@@ -67,21 +71,24 @@ export function Agenda() {
       )}
 
       {fechado ? <p className="vazio">Sem atendimento neste dia.</p> : (
-        <table>
-          <colgroup><col style={{ width: 90 }} /><col /><col style={{ width: 200 }} /><col style={{ width: 210 }} /><col style={{ width: 260 }} /></colgroup>
-          <thead><tr><th>Horário</th><th>Paciente</th><th>Serviço</th><th>Situação</th><th>Pagamento</th></tr></thead>
+        <table className="tabela-agenda">
+          <colgroup><col className="c-hora" /><col /><col className="c-serv" /><col className="c-sit" /><col className="c-pag" /></colgroup>
+          <thead><tr><th>Horário</th><th>Paciente</th><th className="so-largo">Serviço</th><th className="so-largo">Situação</th><th className="so-desktop">Pagamento</th></tr></thead>
           <tbody>
             {linhas.map((l) => l.tipo === 'livre' ? (
               <tr key={'l' + l.inicio} className="livre clicavel" onClick={() => setNovo({ data, hora: data >= hoje() ? l.inicio : undefined })} title="Agendar neste horário">
-                <td>{l.inicio}</td><td>Livre até {l.fim}</td><td /><td /><td />
+                <td>{l.inicio}</td><td>Livre até {l.fim}</td><td className="so-largo" /><td className="so-largo" /><td className="so-desktop" />
               </tr>
             ) : (
-              <tr key={l.ag.id} className="clicavel" onClick={() => setAberto(l.ag.id)}>
-                <td>{l.ag.inicio}</td>
-                <td>{nome(l.ag)}</td>
-                <td>{servico(l.ag)}</td>
-                <td className={PEDE_ATENCAO.includes(l.ag.situacao) ? 'atencao' : l.ag.situacao === 'faltou' ? 'neg' : ''}>{textoSituacao(l.ag)}</td>
-                <td className="mut">{pagamento(l.ag)}</td>
+              <tr key={l.visita.id} className="clicavel" onClick={() => setAberta(l.visita.id)}>
+                <td>{l.visita.inicio}</td>
+                <td>
+                  {nome(l.visita)}
+                  <div className="so-celular mut peq">{servicos(l.visita)} · <span className={classeSit(l.visita)}>{textoSituacao(l.visita)}</span></div>
+                </td>
+                <td className="so-largo">{servicos(l.visita)}</td>
+                <td className={'so-largo ' + classeSit(l.visita)}>{textoSituacao(l.visita)}</td>
+                <td className="so-desktop mut">{pagamento(l.visita)}</td>
               </tr>
             ))}
           </tbody>
@@ -89,7 +96,7 @@ export function Agenda() {
       )}
       {!fechado && <p className="mut peq" style={{ marginTop: 14 }}>{qtdPac} {qtdPac === 1 ? 'paciente' : 'pacientes'} · {qtdLivre} {qtdLivre === 1 ? 'horário livre' : 'horários livres'}</p>}
 
-      {aberto && <DetalheAgendamento id={aberto} onFechar={() => setAberto(null)} onReagendar={(p) => { setAberto(null); setNovo({ data: hoje(), paciente: p }); }} />}
+      {aberta && <DetalheVisita visitaId={aberta} onFechar={() => setAberta(null)} onReagendar={(p) => { setAberta(null); setNovo({ data: hoje(), paciente: p }); }} />}
       {novo && <NovoAgendamento dataInicial={novo.data} horaInicial={novo.hora} pacienteInicial={novo.paciente} onFechar={() => setNovo(null)} />}
     </>
   );

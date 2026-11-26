@@ -26,7 +26,7 @@ export interface Clinica {
   cidade: string;
   whatsapp: string;
   aliquotaImpostos: number; // % sobre o recebido (DRE)
-  taxasCartao: { debito: number; credito: number; creditoParcelado: number }; // % da maquininha
+  taxasCartao: { debito: number; credito: number; creditoParcelado: number; creditoLongo: number }; // % da maquininha: débito, crédito à vista, 2x a 6x, 7x a 12x
   horaLembrete: string; // lembrete da véspera, ex.: "10:00"
   horarios: Record<number, { inicio: string; fim: string }[]>; // 0=domingo … 6=sábado
 }
@@ -53,6 +53,8 @@ export interface Servico {
   valoresConvenio: Record<string, number>; // convenioId → valor
   custoPorExame: number; // repasse/material: entra nos custos do Caixa
   ativo: boolean; // serviço já usado não é excluído, é desativado
+  retiradaDiaSeguinte?: boolean; // Holter/MAPA: agenda sozinho a retirada do aparelho no dia seguinte
+  interno?: boolean; // criado pelo sistema (ex.: retirada do aparelho); não aparece para escolher no agendamento
 }
 
 export interface Paciente {
@@ -73,9 +75,12 @@ export interface EventoAgendamento {
   texto: string; // "Confirmação enviada pelo WhatsApp", "Chegou à clínica"…
 }
 
+// Um agendamento = um serviço. A VISITA junta os serviços que o paciente faz em sequência no mesmo dia
+// (ex.: consulta + eco): mesmo visitaId → uma linha na agenda, um "Chegou", um "Receber", uma mensagem.
 export interface Agendamento {
   id: string;
   clinicaId: string;
+  visitaId: string;
   profissionalId: string;
   pacienteId: string;
   servicoId: string;
@@ -86,6 +91,7 @@ export interface Agendamento {
   valor: number;
   situacao: Situacao;
   chegouAs?: string;
+  retiradaDe?: string; // visitaId do Holter/MAPA que gerou esta retirada (move/cancela junto)
   eventos: EventoAgendamento[];
 }
 

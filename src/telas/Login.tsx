@@ -23,6 +23,7 @@ export function Login() {
     <div className="login">
       <div className="marca"><img src="./dra-logo.png" alt={base.clinica.nome} /></div>
       <form className="form" onSubmit={enviar}>
+        <img className="logo-celular" src="./dra-logo.png" alt={base.clinica.nome} />
         <div className="produto" style={{ marginBottom: 34, fontSize: 20 }}><img src="./io-simbolo.png" alt="" style={{ height: 56 }} />IO Clinic</div>
         {recuperar ? (
           <>

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useDados } from '../estado/Dados';
 import { useSessao } from '../estado/Sessao';
-import { pagamentoDo } from '../estado/acoes';
+import { ID_RETIRADA, pagamentoDo } from '../estado/acoes';
 import { brl, dataBR, hoje, idade, MESES_CURTO } from '../regras/formato';
 import { NOME_SITUACAO } from '../regras/agenda';
 import { ir } from '../estado/rota';
@@ -22,7 +22,7 @@ export function FichaPaciente({ id }: { id: string }) {
   const ags = base.agendamentos.filter((a) => a.pacienteId === id);
   const passadas = ags.filter((a) => a.data < h || a.situacao === 'atendido' || a.situacao === 'faltou').sort((x, y) => y.data.localeCompare(x.data));
   const proximos = ags.filter((a) => !passadas.includes(a) && a.situacao !== 'cancelado').sort((x, y) => (x.data + x.inicio).localeCompare(y.data + y.inicio));
-  const atendidas = passadas.filter((a) => a.situacao === 'atendido');
+  const atendidas = [...new Set(passadas.filter((a) => a.situacao === 'atendido' && a.servicoId !== ID_RETIRADA).map((a) => a.visitaId))];
   const docs = base.documentos.filter((d) => d.pacienteId === id).sort((x, y) => y.data.localeCompare(x.data));
   const totalPago = base.pagamentos.filter((x) => x.pacienteId === id).reduce((s, x) => s + x.valor, 0);
   const desde = p.criadoEm ? `${MESES_CURTO[Number(p.criadoEm.slice(5, 7)) - 1]}/${p.criadoEm.slice(0, 4)}` : '';
@@ -40,10 +40,10 @@ export function FichaPaciente({ id }: { id: string }) {
         </div>
       </div>
 
-      <div className="colunas" style={{ gridTemplateColumns: '1fr 320px' }}>
+      <div className="colunas ficha">
         <div>
           <h3>Visitas e pagamentos</h3>
-          <table>
+          <div className="rolagem"><table>
             <thead><tr><th>Data</th><th>Serviço</th>{medica && <th>Registro da Dra.</th>}<th>Forma</th><th className="num">Valor</th></tr></thead>
             <tbody>
               {passadas.map((a) => {
@@ -62,10 +62,10 @@ export function FichaPaciente({ id }: { id: string }) {
               {!passadas.length && <tr><td colSpan={5} className="vazio">Nenhuma visita ainda.</td></tr>}
               {passadas.length > 0 && <tr className="total"><td colSpan={medica ? 4 : 3}>Total pago</td><td className="num">{brl(totalPago)}</td></tr>}
             </tbody>
-          </table>
+          </table></div>
         </div>
 
-        <div>
+        <div className="lateral">
           <h3>Cadastro</h3>
           <div className="dados">
             <span className="mut">Celular</span><span>{p.celular || '—'}</span>

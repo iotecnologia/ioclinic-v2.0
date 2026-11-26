@@ -5,6 +5,7 @@ import { buscarPacientes } from '../componentes/BuscaPaciente';
 import { FormPaciente } from '../componentes/FormPaciente';
 import { dataBR, hoje } from '../regras/formato';
 import { ir } from '../estado/rota';
+import { ID_RETIRADA } from '../estado/acoes';
 
 const POR_PAGINA = 15;
 
@@ -18,9 +19,11 @@ export function Pacientes() {
     const h = hoje();
     return buscarPacientes(base.pacientes, termo).map((p) => {
       const ags = base.agendamentos.filter((a) => a.pacienteId === p.id);
-      const visitas = ags.filter((a) => a.situacao === 'atendido').sort((x, y) => y.data.localeCompare(x.data));
+      const feitos = ags.filter((a) => a.situacao === 'atendido' && a.servicoId !== ID_RETIRADA).sort((x, y) => y.data.localeCompare(x.data));
+      const ultima = feitos[0];
+      const servUltima = ultima ? feitos.filter((a) => a.visitaId === ultima.visitaId).map((a) => a.servicoId) : [];
       const prox = ags.filter((a) => a.data >= h && !['cancelado', 'atendido', 'faltou'].includes(a.situacao)).sort((x, y) => (x.data + x.inicio).localeCompare(y.data + y.inicio))[0];
-      return { p, ultima: visitas[0], qtd: visitas.length, prox };
+      return { p, ultima, servUltima, qtd: new Set(feitos.map((a) => a.visitaId)).size, prox };
     }).sort((x, y) => x.p.nome.localeCompare(y.p.nome, 'pt-BR'));
   }, [base, termo]);
 
@@ -36,16 +39,15 @@ export function Pacientes() {
         <h1>Pacientes</h1><span className="mut">{base.pacientes.length} cadastrados</span>
         <div className="acoes"><button className="pri" onClick={() => setNovo(true)}>Novo paciente</button></div>
       </div>
-      <input style={{ width: 420, marginBottom: 16 }} placeholder="Buscar por nome, CPF ou celular" value={termo} onChange={(e) => { setTermo(e.target.value); setPagina(0); }} />
+      <input className="busca" style={{ marginBottom: 16 }} placeholder="Buscar por nome, CPF ou celular" value={termo} onChange={(e) => { setTermo(e.target.value); setPagina(0); }} />
       <table>
-        <colgroup><col /><col style={{ width: 160 }} /><col style={{ width: 140 }} /><col style={{ width: 220 }} /><col style={{ width: 170 }} /><col style={{ width: 80 }} /></colgroup>
-        <thead><tr><th>Paciente</th><th>Celular</th><th>Última visita</th><th>Último serviço</th><th>Próximo agendamento</th><th className="num">Visitas</th></tr></thead>
+        <thead><tr><th>Paciente</th><th className="so-desktop">Celular</th><th>Última visita</th><th className="so-desktop">Último serviço</th><th className="so-largo">Próximo agendamento</th><th className="num">Visitas</th></tr></thead>
         <tbody>
-          {visiveis.map(({ p, ultima, qtd, prox }) => (
+          {visiveis.map(({ p, ultima, servUltima, qtd, prox }) => (
             <tr key={p.id} className="clicavel" onClick={() => ir(`pacientes/${p.id}`)}>
-              <td>{p.nome}</td><td>{p.celular}</td>
-              <td>{ultima ? dataBR(ultima.data) : '—'}</td><td>{ultima ? nomeServ(ultima.servicoId) : '—'}</td>
-              <td>{prox ? `${dataBR(prox.data)} ${prox.inicio}` : '—'}</td><td className="num">{qtd}</td>
+              <td>{p.nome}</td><td className="so-desktop">{p.celular}</td>
+              <td>{ultima ? dataBR(ultima.data) : '—'}</td><td className="so-desktop">{servUltima.length ? servUltima.map(nomeServ).join(' + ') : '—'}</td>
+              <td className="so-largo">{prox ? `${dataBR(prox.data)} ${prox.inicio}` : '—'}</td><td className="num">{qtd}</td>
             </tr>
           ))}
           {!visiveis.length && <tr><td colSpan={6} className="vazio">Nenhum paciente encontrado.</td></tr>}
