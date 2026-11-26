@@ -45,9 +45,8 @@ Regra geral: **a tela só consulta**. Incluir, alterar, receber e registrar acon
 
 ## Visita com vários serviços
 
-No Novo agendamento, cada linha é um exame com o seu horário; **"Adicionar outro exame"** inclui mais uma linha
-para o mesmo paciente no mesmo dia. **A recepcionista decide os horários**: todos no mesmo horário ou um depois do
-outro (o sistema sugere o horário logo após o anterior). Os exames formam a **visita**: uma linha só na agenda, com
+No Novo agendamento, **"Adicionar outro exame"** inclui mais um exame para o mesmo paciente. Os exames são feitos
+em sequência: o calendário e os horários livres consideram o tempo total. Os exames formam a **visita**: uma linha só na agenda, com
 um "Chegou", um "Receber" (total), uma mensagem de confirmação; remarcar/cancelar movem tudo junto. Dá para
 **tirar** um exame da visita sem cancelar o resto. No Caixa continua um lançamento por serviço.
 

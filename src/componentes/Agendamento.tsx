@@ -6,7 +6,7 @@ import { useDados } from '../estado/Dados';
 import { useSessao } from '../estado/Sessao';
 import { agendarVisita, cancelar, chegou, confirmarManual, faltou, horarioDaRetirada, ID_RETIRADA, pagamentoDo, pagamentosDaVisita, receber, registrarAtendimento, registroDaVisita, remarcar, tirarDaVisita } from '../estado/acoes';
 import { horariosLivres, montarVisita, NOME_SITUACAO, servicosDaVisita, type Visita } from '../regras/agenda';
-import { agoraHHMM, brl, dataBR, dataExtenso, diaMes, hhmm, hoje, lerValor, minutos } from '../regras/formato';
+import { agoraHHMM, brl, dataBR, diaMes, hhmm, hoje, lerValor, minutos, somarDias } from '../regras/formato';
 import { taxaMaquininha } from '../regras/caixa';
 import { LISTA_CID } from '../dados/gerador';
 import { ir } from '../estado/rota';
@@ -14,7 +14,6 @@ import { Janela } from './Janela';
 import { BuscaPaciente } from './BuscaPaciente';
 import { FormPaciente } from './FormPaciente';
 import { EscolherHorario } from './EscolherHorario';
-import { Calendario } from './Calendario';
 import { EmitirDocumento } from './Documentos';
 
 export function textoSituacao(v: Visita) {
@@ -199,78 +198,68 @@ function RegistrarAtendimento({ visita, onFechar }: { visita: Visita; onFechar: 
 }
 
 // ---------------------------------------------------------------- novo agendamento
-// Uma lista de exames: cada linha tem o serviço e o horário. A recepcionista decide os horários
-// (pode pôr todos no mesmo horário ou um depois do outro). "Adicionar outro exame" inclui mais uma linha.
-type Linha = { servicoId: string; hora: string };
-
+// Lista de exames (botão "Adicionar outro exame" para o mesmo paciente). Os exames são feitos em sequência:
+// o calendário e os horários livres já consideram o tempo total de todos.
 export function NovoAgendamento({ dataInicial, horaInicial, pacienteInicial, onFechar }: { dataInicial: string; horaInicial?: string; pacienteInicial?: string; onFechar: () => void }) {
   const { base, alterar } = useDados();
   const { usuario } = useSessao();
   const [pac, setPac] = useState<Paciente | null>(() => base.pacientes.find((p) => p.id === pacienteInicial) ?? null);
   const [cadastrar, setCadastrar] = useState<string | null>(null);
   const opcoes = base.servicos.filter((s) => s.ativo && !s.interno);
-  const [data, setData] = useState(dataInicial < hoje() ? hoje() : dataInicial);
-  const [linhas, setLinhas] = useState<Linha[]>([{ servicoId: '', hora: horaInicial ?? '' }]);
+  const [servicos, setServicos] = useState<string[]>(['srv_consulta']);
+  const escolhidos = servicos.map((id) => base.servicos.find((s) => s.id === id)).filter((s): s is NonNullable<typeof s> => !!s);
+  const duracao = escolhidos.reduce((a, s) => a + s.duracaoMin, 0) || 30;
+  // abre no dia pedido; se nele não houver horário (ex.: hoje depois do expediente), no próximo dia com horário livre
+  const [data, setData] = useState(() => {
+    const desde = (d: string) => (d === hoje() ? agoraHHMM() : undefined);
+    let d = dataInicial < hoje() ? hoje() : dataInicial;
+    if (horaInicial) return d; // veio de um horário livre clicado na agenda
+    for (let i = 0; i < 60 && !horariosLivres(d, 30, base.agendamentos, base.clinica, [], undefined, desde(d)).length; i++) d = somarDias(d, 1);
+    return d;
+  });
+  const [hora, setHora] = useState(horaInicial ?? '');
   const [whats, setWhats] = useState(true);
   const [erro, setErro] = useState('');
-  const serv = (id: string) => base.servicos.find((s) => s.id === id);
-  const desde = (d: string) => (d === hoje() ? agoraHHMM() : undefined);
-  const livres = (servicoId: string) => horariosLivres(data, serv(servicoId)?.duracaoMin ?? 30, base.agendamentos, base.clinica, [], undefined, desde(data));
-  const total = linhas.reduce((a, l) => a + (serv(l.servicoId)?.valorParticular ?? 0), 0);
-  const comRetirada = linhas.find((l) => serv(l.servicoId)?.retiradaDiaSeguinte && l.hora);
-  const ret = serv(ID_RETIRADA);
-  const retirada = comRetirada && ret ? horarioDaRetirada(base, data, comRetirada.hora, ret.duracaoMin) : null;
+  const valor = escolhidos.reduce((a, s) => a + s.valorParticular, 0);
+  const comRetirada = escolhidos.some((s) => s.retiradaDiaSeguinte);
+  const ret = base.servicos.find((s) => s.id === ID_RETIRADA);
+  const retirada = comRetirada && hora && ret ? horarioDaRetirada(base, data, hora, ret.duracaoMin) : null;
 
-  const mudar = (i: number, l: Partial<Linha>) => { setLinhas(linhas.map((x, j) => (j === i ? { ...x, ...l } : x))); setErro(''); };
-  const adicionar = () => {
-    // sugere o horário logo depois do exame anterior (a recepcionista pode trocar)
-    const ant = linhas[linhas.length - 1];
-    const fimAnt = ant.hora && serv(ant.servicoId) ? hhmm(minutos(ant.hora) + serv(ant.servicoId)!.duracaoMin) : '';
-    setLinhas([...linhas, { servicoId: '', hora: fimAnt }]);
-  };
+  const mudar = (i: number, id: string) => { const n = [...servicos]; n[i] = id; setServicos(n); setHora(''); setErro(''); };
   const confirmar = () => {
     if (!pac) return setErro('Escolha o paciente.');
-    if (linhas.some((l) => !l.servicoId)) return setErro('Escolha o exame de cada linha.');
-    if (linhas.some((l) => !l.hora)) return setErro('Escolha o horário de cada exame.');
-    if (linhas.some((l) => !livres(l.servicoId).includes(l.hora))) return setErro('Algum horário não está mais livre. Confira os horários.');
-    alterar((b) => agendarVisita(b, { pacienteId: pac.id, data, itens: linhas.map((l) => ({ servicoId: l.servicoId, inicio: l.hora })), enviarWhatsapp: whats, origem: usuario?.perfil === 'medica' ? 'pela Dra.' : 'pela recepção' }));
+    if (servicos.some((id) => !id)) return setErro('Escolha o exame de cada linha.');
+    if (!hora) return setErro('Escolha o horário.');
+    let t = minutos(hora);
+    const itens = escolhidos.map((s) => { const it = { servicoId: s.id, inicio: hhmm(t) }; t += s.duracaoMin; return it; });
+    alterar((b) => agendarVisita(b, { pacienteId: pac.id, data, itens, enviarWhatsapp: whats, origem: usuario?.perfil === 'medica' ? 'pela Dra.' : 'pela recepção' }));
     onFechar();
   };
 
   return (
     <>
-      <Janela titulo="Novo agendamento" largura={860} onFechar={onFechar}
+      <Janela titulo="Novo agendamento" largura={700} onFechar={onFechar}
         rodape={<><button className="pri" onClick={confirmar}>Agendar</button><button onClick={onFechar}>Cancelar</button></>}>
         <div className="campos">
           <div><label className="rot">Paciente</label><BuscaPaciente selecionado={pac} onEscolher={setPac} onNovo={(n) => setCadastrar(n)} /></div>
-          <div className="escolher-horario">
-            <Calendario valor={data} onEscolher={(d) => { setData(d); setLinhas(linhas.map((l) => ({ ...l, hora: '' }))); }}
-              podeEscolher={(d) => d >= hoje() && horariosLivres(d, 30, base.agendamentos, base.clinica, [], undefined, desde(d)).length > 0} />
-            <div>
-              <label className="rot">Exames · {dataExtenso(data)}</label>
-              <div className="lista-exames">
-                {linhas.map((l, i) => {
-                  const hs = l.servicoId ? livres(l.servicoId) : [];
-                  return (
-                    <div key={i} className="linha-exame">
-                      <select value={l.servicoId} onChange={(e) => mudar(i, { servicoId: e.target.value, hora: e.target.value && livres(e.target.value).includes(l.hora) ? l.hora : '' })}>
-                        <option value="">Escolha o exame</option>
-                        {opcoes.map((s) => <option key={s.id} value={s.id}>{s.nome} · {s.valorParticular ? brl(s.valorParticular) : 'sem custo'}</option>)}
-                      </select>
-                      <select value={l.hora} disabled={!l.servicoId} onChange={(e) => mudar(i, { hora: e.target.value })} aria-label="Horário">
-                        <option value="">{l.servicoId && !hs.length ? 'Sem horário' : 'Horário'}</option>
-                        {hs.map((h) => <option key={h} value={h}>{h}</option>)}
-                      </select>
-                      {linhas.length > 1 ? <button onClick={() => setLinhas(linhas.filter((_, j) => j !== i))}>Remover</button> : <span />}
-                    </div>
-                  );
-                })}
-              </div>
-              <button style={{ marginTop: 10 }} onClick={adicionar}>Adicionar outro exame</button>
-              <p style={{ margin: '14px 0 0' }}>Total: <b>{total ? brl(total) : 'sem custo'}</b></p>
-              {retirada && <p className="mut" style={{ margin: '6px 0 0' }}>Retirada do aparelho: {dataBR(retirada.data)} às {retirada.inicio} (marcada sozinha).</p>}
+          <div>
+            <label className="rot">{servicos.length > 1 ? 'Exames (feitos em sequência)' : 'Exame'}</label>
+            <div className="lista-exames">
+              {servicos.map((id, i) => (
+                <div key={i} className={servicos.length > 1 ? 'linha-exame' : ''}>
+                  <select className="w100" value={id} onChange={(e) => mudar(i, e.target.value)}>
+                    {!id && <option value="">Escolha o exame</option>}
+                    {opcoes.map((s) => <option key={s.id} value={s.id}>{s.nome} · {s.duracaoMin >= 60 ? `${s.duracaoMin / 60} hora` : `${s.duracaoMin} min`} · {s.valorParticular ? brl(s.valorParticular) : 'sem custo'}</option>)}
+                  </select>
+                  {servicos.length > 1 && <button onClick={() => { setServicos(servicos.filter((_, j) => j !== i)); setHora(''); }}>Remover</button>}
+                </div>
+              ))}
             </div>
+            <button style={{ marginTop: 10 }} onClick={() => { setServicos([...servicos, '']); setHora(''); }}>Adicionar outro exame</button>
           </div>
+          <EscolherHorario data={data} hora={hora} duracao={duracao} onData={setData} onHora={setHora} />
+          <p style={{ margin: 0 }}>Total: <b>{valor ? brl(valor) : 'sem custo'}</b>{escolhidos.length > 1 && <span className="mut"> · {escolhidos.length} exames em sequência</span>}</p>
+          {retirada && <p className="mut" style={{ margin: 0 }}>Retirada do aparelho: {dataBR(retirada.data)} às {retirada.inicio} (marcada sozinha).</p>}
           <label className="peq" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input type="checkbox" checked={whats} onChange={(e) => setWhats(e.target.checked)} style={{ width: 16, height: 16 }} />
             Enviar confirmação ao paciente pelo WhatsApp
