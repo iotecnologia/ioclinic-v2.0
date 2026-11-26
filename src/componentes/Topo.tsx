@@ -1,9 +1,10 @@
 // Topo: marca do produto (IO) à esquerda, menu, e à direita o sino de pendências, a clínica e o usuário.
 // No celular o menu vira um botão "Menu" que abre a lista por baixo do topo.
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useDados } from '../estado/Dados';
 import { useSessao } from '../estado/Sessao';
 import { AlterarSenha } from './AlterarSenha';
+import { useFechaFora } from './useFechaFora';
 import { pendencias } from '../regras/pendencias';
 import { dataBR, hoje, somarDias } from '../regras/formato';
 import { ir } from '../estado/rota';
@@ -23,12 +24,7 @@ export function Topo({ ativo }: { ativo: string }) {
   const [sino, setSino] = useState(false);
   const refSino = useRef<HTMLDivElement>(null);
   const lista = pendencias(base, hoje());
-  useEffect(() => {
-    if (!sino) return;
-    const fora = (e: MouseEvent) => { if (refSino.current && !refSino.current.contains(e.target as Node)) setSino(false); };
-    document.addEventListener('mousedown', fora);
-    return () => document.removeEventListener('mousedown', fora);
-  }, [sino]);
+  useFechaFora(refSino, sino, useCallback(() => setSino(false), []));
   const quando = (d: string) => (d === hoje() ? 'Hoje' : d === somarDias(hoje(), 1) ? 'Amanhã' : dataBR(d).slice(0, 5));
   const nome = (id: string) => base.pacientes.find((p) => p.id === id)?.nome ?? '';
   const medica = usuario?.perfil === 'medica';

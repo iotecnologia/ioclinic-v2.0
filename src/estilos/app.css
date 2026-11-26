@@ -236,3 +236,24 @@ tr.total td { font-weight: 600; border-top: 1px solid var(--linha); border-botto
 @media (max-width: 640px) {
   .painel-sino { position: fixed; left: 0; right: 0; top: 56px; width: auto; border-radius: 0; border-left: 0; border-right: 0; max-height: calc(100vh - 56px); }
 }
+
+/* ---------- agenda: visão da semana ---------- */
+.semana { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); border-top: 1px solid var(--linha); }
+.dia-semana { border-right: 1px solid var(--div); min-height: 360px; display: flex; flex-direction: column; }
+.dia-semana:last-child { border-right: 0; }
+.dia-semana.hoje { background: rgba(222, 232, 244, .35); }
+.dia-semana .cab-dia { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; border: 0; border-bottom: 1px solid var(--div); border-radius: 0; background: none; padding: 10px 10px; text-align: left; color: var(--azul); }
+.dia-semana .cab-dia b { font-size: 17px; }
+.dia-semana .cab-dia .peq { width: 100%; }
+.visita-semana { display: flex; flex-direction: column; gap: 1px; border: 0; border-bottom: 1px solid var(--div); border-radius: 0; background: none; padding: 8px 10px; text-align: left; color: var(--texto); white-space: normal; font-size: 13px; }
+.visita-semana:hover, .dia-semana .cab-dia:hover { background: rgba(222, 232, 244, .6); }
+.visita-semana .hora { font-weight: 600; color: var(--azul); }
+.dia-semana .novo-dia { margin: 8px 10px; align-self: flex-start; }
+@media (max-width: 1024px) {
+  .semana { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .dia-semana { min-height: 0; border-bottom: 1px solid var(--div); }
+}
+@media (max-width: 640px) {
+  .semana { grid-template-columns: 1fr; }
+  .dia-semana { border-right: 0; }
+}
